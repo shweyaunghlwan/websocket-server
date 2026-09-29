@@ -14,13 +14,19 @@ const MATCH_TIMEOUT_MS = 30000;
 
 console.log(`WebSocket Server is running on port ${PORT}`);
 
-// Helper Function: Queue ထဲမှ ဖျက်ထုတ်ပြီး ပွင့်နေသော Timer ကို အပြီးတိုင် ရပ်ဆိုင်းခြင်း
-function removeFromQueue(userId) {
-    const index = quickMatchQueue.findIndex(p => p.userId === userId);
+// Helper Function: 特定 Connection (targetWs) ၏ Queue Item ကိုသာ စစ်ဆေး၍ ဖျက်ဆီးခြင်း
+function removeFromQueue(userId, targetWs = null) {
+    const index = quickMatchQueue.findIndex(p => {
+        if (targetWs) {
+            return p.userId === userId && p.ws === targetWs;
+        }
+        return p.userId === userId;
+    });
+
     if (index !== -1) {
         const [player] = quickMatchQueue.splice(index, 1);
         if (player.timeoutTimer) {
-            clearTimeout(player.timeoutTimer); // Memory Leak မဖြစ်အောင် Timer ကို ဖျက်ပါ
+            clearTimeout(player.timeoutTimer); // Timer ကို စနစ်တကျ ရပ်ပါ
         }
         return player;
     }
@@ -77,13 +83,12 @@ wss.on('connection', (ws) => {
             // 4. Quick Match Join (FIFO Queue + Timeout Management)
             else if (message.type === 'QUICK_MATCH_JOIN') {
                 const userId = String(message.userId);
-                // Language ကို စာလုံးအကြီး/အသေး မတူတာမျိုး မဖြစ်အောင် Lowercase ပြောင်းပါမည်
                 const language = String(message.language || 'java').trim().toLowerCase();
 
                 registeredUserId = userId;
                 clients.set(userId, ws);
 
-                // Queue ထဲမှ မိမိ ချိတ်ဆက်မှုဟောင်း/Timer ဟောင်း ရှိပါက အရင်ရှင်းထုတ်ပါ
+                // Queue ထဲမှ မိမိ Connection အဟောင်းရှိပါက အရင်ရှင်းထုတ်ပါ
                 removeFromQueue(userId);
 
                 // FIFO အလိုက် အစောဆုံး ရောက်နေသော Matching Opponent ကို ရှာပါ
@@ -92,7 +97,7 @@ wss.on('connection', (ws) => {
                 );
 
                 if (opponentIndex !== -1) {
-                    // Match တွေ့ပါက Queue ထဲမှ ထုတ်ပြီး စောင့်ဆိုင်းသူ၏ Timeout Timer ကို ရပ်ဆိုင်းပါ
+                    // Match တွေ့ပါက Queue ထဲမှ ထုတ်ပြီး Timeout Timer ကို ရပ်ဆိုင်းပါ
                     const [opponent] = quickMatchQueue.splice(opponentIndex, 1);
                     if (opponent.timeoutTimer) {
                         clearTimeout(opponent.timeoutTimer);
@@ -125,7 +130,7 @@ wss.on('connection', (ws) => {
                     // Match မတွေ့သေးပါက စက္ကန့် ၃၀ ပြည့်လျှင် အလိုအလျောက် ပယ်ဖျက်မည့် Timer စတင်ပါ
                     const timeoutTimer = setTimeout(() => {
                         console.log(`User ${userId} Quick Match timed out.`);
-                        removeFromQueue(userId);
+                        removeFromQueue(userId, ws);
 
                         if (ws.readyState === 1) {
                             ws.send(JSON.stringify({
@@ -151,7 +156,7 @@ wss.on('connection', (ws) => {
             // 5. Quick Match Cancel
             else if (message.type === 'QUICK_MATCH_CANCEL') {
                 const userId = String(message.userId);
-                removeFromQueue(userId);
+                removeFromQueue(userId, ws);
                 console.log(`User ${userId} cancelled Quick Match.`);
             }
         } catch (err) {
@@ -161,8 +166,9 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         if (registeredUserId) {
+            // လိုင်းကျသွားသော သီးသန့် Connection (ws) ကိုသာ Queue ထဲမှ ဖျက်မည်
             clients.delete(registeredUserId);
-            removeFromQueue(registeredUserId); // Connection ပြတ်ပါက Queue နှင့် Timer ပါ ရပ်ပါမည်
+            removeFromQueue(registeredUserId, ws);
             console.log(`User ${registeredUserId} disconnected.`);
         }
     });
