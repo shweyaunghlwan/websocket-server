@@ -8,9 +8,8 @@ const clients = new Map();
 
 // Quick Match စောင့်ဆိုင်းသူများ စာရင်း [{ userId, language, ws, joinedAt, timeoutTimer }]
 let quickMatchQueue = [];
-
-// စောင့်ဆိုင်းချိန် သတ်မှတ်ချက် (စက္ကန့် ၃၀)
-const MATCH_TIMEOUT_MS = 30000;
+// စမ်းသပ်ရန်အတွက် 5 စက္ကန့် (5000ms) သို့ ခေတ္တပြောင်းပါ
+const MATCH_TIMEOUT_MS = 5000;
 
 console.log(`WebSocket Server is running on port ${PORT}`);
 
