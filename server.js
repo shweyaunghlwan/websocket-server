@@ -7,8 +7,8 @@ const wss = new WebSocketServer({ port: PORT });
 const clients = new Map(); // userId -> ws
 let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
 
-// စမ်းသပ်ရန် 5 စက္ကန့် (အဆင်ပြေပါက 30000 ဟု ပြောင်းပါ)
-const MATCH_TIMEOUT_MS = 5000;
+
+const MATCH_TIMEOUT_MS = 30000;
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
 
