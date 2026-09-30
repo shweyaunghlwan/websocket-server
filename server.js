@@ -7,7 +7,6 @@ const wss = new WebSocketServer({ port: PORT });
 const clients = new Map(); // userId -> ws
 let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
 
-
 const MATCH_TIMEOUT_MS = 30000;
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
@@ -144,15 +143,23 @@ wss.on('connection', (ws) => {
                         }
                     ]);
 
-                    const matchData = {
+                    // User A (လက်ရှိဝင်လာသူ) ထံ ပို့မည် (opponentId ပါဝင်သည်)
+                    sendJson(ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
                         language: language,
+                        opponentId: opponent.userId,
                         questions: questionsPayload
-                    };
+                    });
 
-                    sendJson(ws, matchData);
-                    sendJson(opponent.ws, matchData);
+                    // User B (Queue ထဲတွင် စောင့်နေသူ) ထံ ပို့မည် (opponentId ပါဝင်သည်)
+                    sendJson(opponent.ws, {
+                        type: "QUICK_MATCH_START",
+                        roomId: roomId,
+                        language: language,
+                        opponentId: userId,
+                        questions: questionsPayload
+                    });
 
                     console.log(`Quick Match Start: User ${userId} vs User ${opponent.userId}`);
                 } else {
