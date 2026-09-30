@@ -6,11 +6,10 @@ const wss = new WebSocketServer({ port: PORT });
 
 const clients = new Map(); // userId -> ws
 let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
-
-// ⭐ အခန်းတစ်ခုစီတွင် မည်သည့် Player များ ရောက်ရှိနေသည်ကို မှတ်သားရန် Map (roomId -> { players: [userId1, userId2] })
-const rooms = new Map();
+const rooms = new Map(); // roomId -> { players: [userId1, userId2] }
 
 const MATCH_TIMEOUT_MS = 30000;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
 
@@ -46,7 +45,42 @@ function removeFromQueue(userId, targetWs = null) {
     return null;
 }
 
-// Render Server အလိုအလျောက် Connection မပိတ်သွားစေရန် Ping/Pong စနစ် (စက္ကန့် ၃၀ တိုင်း စစ်မည်)
+// ⭐ Gemini AI ထံမှ မေးခွန်းတောင်းယူပေးသည့် Function
+async function generateAIQuestion(language) {
+    const prompt = `Generate a unique intermediate-level coding challenge for ${language}.
+Return ONLY a valid JSON array containing a single object with the exact following structure:
+[
+  {
+    "title": "Short Challenge Title",
+    "description": "Clear problem statement with sample input/output format.",
+    "starter_code": "Starter code function or setup in ${language}"
+  }
+]
+Do not include markdown blocks like \`\`\`json. Return pure JSON string only.`;
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
+        const data = await response.json();
+        let jsonText = data.candidates[0].content.parts[0].text.trim();
+        jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+        JSON.parse(jsonText); // JSON စစ်ဆေးခြင်း
+        return jsonText;
+    } catch (error) {
+        console.error("AI Question Generation Failed, Fallback used:", error.message);
+        return JSON.stringify([{
+            "title": `${language.toUpperCase()} Challenge`,
+            "description": "Write a function to solve the challenge.",
+            "starter_code": "// Write your code here"
+        }]);
+    }
+}
+
+// Render Server မပိတ်စေရန် Ping/Pong Interval
 const heartbeatInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) {
@@ -69,7 +103,7 @@ wss.on('connection', (ws) => {
         ws.isAlive = true;
     });
 
-    ws.on('message', (rawData) => {
+    ws.on('message', async (rawData) => { // ⭐ AI Call ရန် async ထည့်သွင်းထားသည်
         try {
             const messageStr = rawData.toString();
             const message = JSON.parse(messageStr);
@@ -95,24 +129,38 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 3. Invite Response
+            // 3. Invite Response (Friend Match)
             else if (message.type === 'INVITE_RESPONSE') {
                 const senderWs = clients.get(String(message.toUser));
 
-                if (message.action === 'ACCEPT') {
-                    const roomId = "ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                    
-                    // ⭐ Friend Match အခန်း သိမ်းဆည်းမည်
+                if (message.action === 'ACCEPT' && senderWs) {
+                    const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
+                    const language = message.language || 'java';
+
                     rooms.set(roomId, { players: [String(message.toUser), registeredUserId] });
 
-                    const startGamePayload = {
+                    // ⭐ Gemini AI မေးခွန်းထုတ်ယူခြင်း
+                    const questionsPayload = await generateAIQuestion(language);
+
+                    // Host (Invite ပို့သူ) သို့ အကြောင်းကြားမည်
+                    sendJson(senderWs, {
                         type: 'START_GAME',
                         roomId: roomId,
-                        language: message.language || 'java'
-                    };
+                        language: language,
+                        opponentId: registeredUserId,
+                        questions: questionsPayload
+                    });
 
-                    sendJson(senderWs, startGamePayload);
-                    sendJson(ws, startGamePayload);
+                    // Guest (Invite လက်ခံသူ) သို့ အကြောင်းကြားမည်
+                    sendJson(ws, {
+                        type: 'START_GAME',
+                        roomId: roomId,
+                        language: language,
+                        opponentId: String(message.toUser),
+                        questions: questionsPayload
+                    });
+
+                    console.log(`Friend Match Start: User ${message.toUser} vs User ${registeredUserId} in ${roomId}`);
                 }
             }
 
@@ -139,17 +187,10 @@ wss.on('connection', (ws) => {
                     }
 
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                    
-                    // ⭐ Quick Match အခန်း သိမ်းဆည်းမည်
                     rooms.set(roomId, { players: [userId, opponent.userId] });
 
-                    const questionsPayload = JSON.stringify([
-                        {
-                            "title": language.toUpperCase() + " Coding Challenge",
-                            "description": "Solve the given problem in real-time.",
-                            "starter_code": "// Write code here"
-                        }
-                    ]);
+                    // ⭐ Gemini AI မေးခွန်းထုတ်ယူခြင်း
+                    const questionsPayload = await generateAIQuestion(language);
 
                     // User A
                     sendJson(ws, {
@@ -200,14 +241,13 @@ wss.on('connection', (ws) => {
                 console.log(`User ${userId} cancelled Quick Match.`);
             }
 
-            // ⭐ 6. Real-time Progress ကို ပြိုင်ဘက် (Opponent) ဆီ သို့ Broadcast လုပ်ပေးခြင်း
+            // 6. Real-time Progress
             else if (message.type === 'GAME_PROGRESS') {
                 const { roomId, userId, progress } = message;
                 const room = rooms.get(roomId);
 
                 if (room) {
                     room.players.forEach(pId => {
-                        // မိမိ မဟုတ်သော ပြိုင်ဘက်ဆီသို့သာ Progress ပို့ပေးမည်
                         if (pId !== String(userId)) {
                             const targetWs = clients.get(pId);
                             sendJson(targetWs, {
@@ -220,7 +260,7 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // ⭐ 7. ပွဲပြီးဆုံးသွားပါက အနိုင်ရသူ အခြေအနေကို နှစ်ဦးလုံးဆီ ပို့ပေးခြင်း
+            // 7. Game Over
             else if (message.type === 'GAME_OVER') {
                 const { roomId, winnerId } = message;
                 const room = rooms.get(roomId);
@@ -233,7 +273,6 @@ wss.on('connection', (ws) => {
                             winnerId: winnerId
                         });
                     });
-                    // ပွဲပြီးသွားသဖြင့် Room ကို ဖျက်မည်
                     rooms.delete(roomId);
                     console.log(`Game Over in Room ${roomId}. Winner: ${winnerId}`);
                 }
