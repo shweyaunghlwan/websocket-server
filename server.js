@@ -7,6 +7,9 @@ const wss = new WebSocketServer({ port: PORT });
 const clients = new Map(); // userId -> ws
 let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
 
+// ⭐ အခန်းတစ်ခုစီတွင် မည်သည့် Player များ ရောက်ရှိနေသည်ကို မှတ်သားရန် Map (roomId -> { players: [userId1, userId2] })
+const rooms = new Map();
+
 const MATCH_TIMEOUT_MS = 30000;
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
@@ -68,7 +71,6 @@ wss.on('connection', (ws) => {
 
     ws.on('message', (rawData) => {
         try {
-            // Buffer Data ပြဿနာ မဖြစ်စေရန် String သို့ ဦးစွာ ပြောင်းယူပါ
             const messageStr = rawData.toString();
             const message = JSON.parse(messageStr);
             console.log("Received:", message);
@@ -99,6 +101,10 @@ wss.on('connection', (ws) => {
 
                 if (message.action === 'ACCEPT') {
                     const roomId = "ROOM_" + Math.floor(1000 + Math.random() * 9000);
+                    
+                    // ⭐ Friend Match အခန်း သိမ်းဆည်းမည်
+                    rooms.set(roomId, { players: [String(message.toUser), registeredUserId] });
+
                     const startGamePayload = {
                         type: 'START_GAME',
                         roomId: roomId,
@@ -118,10 +124,8 @@ wss.on('connection', (ws) => {
                 registeredUserId = userId;
                 clients.set(userId, ws);
 
-                // Queue ထဲတွင် ရှိပြီးသား Connection အဟောင်းများ ဖျက်မည်
                 removeFromQueue(userId);
 
-                // Matching ဖြစ်မည့် Opponent ရှာမည်
                 const opponentIndex = quickMatchQueue.findIndex(p =>
                     p.language === language &&
                     p.userId !== userId &&
@@ -135,6 +139,10 @@ wss.on('connection', (ws) => {
                     }
 
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
+                    
+                    // ⭐ Quick Match အခန်း သိမ်းဆည်းမည်
+                    rooms.set(roomId, { players: [userId, opponent.userId] });
+
                     const questionsPayload = JSON.stringify([
                         {
                             "title": language.toUpperCase() + " Coding Challenge",
@@ -143,7 +151,7 @@ wss.on('connection', (ws) => {
                         }
                     ]);
 
-                    // User A (လက်ရှိဝင်လာသူ) ထံ ပို့မည် (opponentId ပါဝင်သည်)
+                    // User A
                     sendJson(ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
@@ -152,7 +160,7 @@ wss.on('connection', (ws) => {
                         questions: questionsPayload
                     });
 
-                    // User B (Queue ထဲတွင် စောင့်နေသူ) ထံ ပို့မည် (opponentId ပါဝင်သည်)
+                    // User B
                     sendJson(opponent.ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
@@ -161,9 +169,8 @@ wss.on('connection', (ws) => {
                         questions: questionsPayload
                     });
 
-                    console.log(`Quick Match Start: User ${userId} vs User ${opponent.userId}`);
+                    console.log(`Quick Match Start: User ${userId} vs User ${opponent.userId} in ${roomId}`);
                 } else {
-                    // Match မတွေ့သေးပါက Timeout Timer စတင်မည်
                     const timeoutTimer = setTimeout(() => {
                         console.log(`User ${userId} Quick Match timed out.`);
                         removeFromQueue(userId, ws);
@@ -191,6 +198,45 @@ wss.on('connection', (ws) => {
                 const userId = String(message.userId);
                 removeFromQueue(userId, ws);
                 console.log(`User ${userId} cancelled Quick Match.`);
+            }
+
+            // ⭐ 6. Real-time Progress ကို ပြိုင်ဘက် (Opponent) ဆီ သို့ Broadcast လုပ်ပေးခြင်း
+            else if (message.type === 'GAME_PROGRESS') {
+                const { roomId, userId, progress } = message;
+                const room = rooms.get(roomId);
+
+                if (room) {
+                    room.players.forEach(pId => {
+                        // မိမိ မဟုတ်သော ပြိုင်ဘက်ဆီသို့သာ Progress ပို့ပေးမည်
+                        if (pId !== String(userId)) {
+                            const targetWs = clients.get(pId);
+                            sendJson(targetWs, {
+                                type: 'GAME_PROGRESS',
+                                userId: userId,
+                                progress: progress
+                            });
+                        }
+                    });
+                }
+            }
+
+            // ⭐ 7. ပွဲပြီးဆုံးသွားပါက အနိုင်ရသူ အခြေအနေကို နှစ်ဦးလုံးဆီ ပို့ပေးခြင်း
+            else if (message.type === 'GAME_OVER') {
+                const { roomId, winnerId } = message;
+                const room = rooms.get(roomId);
+
+                if (room) {
+                    room.players.forEach(pId => {
+                        const targetWs = clients.get(pId);
+                        sendJson(targetWs, {
+                            type: 'GAME_OVER',
+                            winnerId: winnerId
+                        });
+                    });
+                    // ပွဲပြီးသွားသဖြင့် Room ကို ဖျက်မည်
+                    rooms.delete(roomId);
+                    console.log(`Game Over in Room ${roomId}. Winner: ${winnerId}`);
+                }
             }
 
         } catch (err) {
