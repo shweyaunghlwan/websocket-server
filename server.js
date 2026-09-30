@@ -9,7 +9,8 @@ let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
 const rooms = new Map(); // roomId -> { players: [userId1, userId2] }
 
 const MATCH_TIMEOUT_MS = 30000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY_HERE";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6IGju_XNY-bAgyVdvQic7vwOskvS5alYQm6dZCljVuKFA";
+const PYTHONANYWHERE_URL = "https://NickayJohn26.pythonanywhere.com";
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
 
@@ -45,9 +46,50 @@ function removeFromQueue(userId, targetWs = null) {
     return null;
 }
 
-// ⭐ Gemini AI ထံမှ မေးခွန်းတောင်းယူပေးသည့် Function
+// ⭐ Local Fallback Questions
+const FALLBACK_QUESTIONS = {
+    java: [
+        [{ title: "Array Reversal", description: "Write a method to reverse an array of integers.", starter_code: "public class Solution {\n    public static void reverse(int[] arr) {\n        // Write code here\n    }\n}" }],
+        [{ title: "Palindrome Check", description: "Determine if a given string is a palindrome.", starter_code: "public class Solution {\n    public static boolean isPalindrome(String s) {\n        // Write code here\n        return false;\n    }\n}" }],
+        [{ title: "Find Maximum", description: "Find the maximum number in an integer array.", starter_code: "public class Solution {\n    public static int findMax(int[] nums) {\n        // Write code here\n        return 0;\n    }\n}" }]
+    ],
+    python: [
+        [{ title: "Sum of List", description: "Write a function that returns the sum of elements in a list.", starter_code: "def sum_list(numbers):\n    # Write code here\n    pass" }],
+        [{ title: "Count Vowels", description: "Count the number of vowels in a string.", starter_code: "def count_vowels(s):\n    # Write code here\n    pass" }]
+    ]
+};
+
+function getRandomFallback(language) {
+    const langKey = String(language).toLowerCase();
+    const list = FALLBACK_QUESTIONS[langKey] || FALLBACK_QUESTIONS['java'];
+    const randomIndex = Math.floor(Math.random() * list.length);
+    return JSON.stringify(list[randomIndex]);
+}
+
+// ⭐ PythonAnywhere API မှ မေးခွန်း လှမ်းတောင်းသည့် Function
+async function fetchFromPythonAnywhere(language, difficulty = "easy") {
+    try {
+        const url = `${PYTHONANYWHERE_URL}/api/get-question?language=${encodeURIComponent(language)}&difficulty=${encodeURIComponent(difficulty)}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        if (res.ok) {
+            const data = await res.text();
+            JSON.parse(data); // Valid JSON စစ်သည်
+            return data;
+        }
+    } catch (e) {
+        console.warn("PythonAnywhere API Fetch Failed:", e.message);
+    }
+    return null;
+}
+
+// ⭐ ၃ ဆင့်ခံ မေးခွန်း ထုတ်ပေးသည့် Function (Gemini -> PythonAnywhere -> Local Fallback)
 async function generateAIQuestion(language) {
-    const prompt = `Generate a unique intermediate-level coding challenge for ${language}.
+    const topics = ["Arrays & Strings", "Math & Logic", "Loops & Conditions", "Data Structures", "Algorithms"];
+    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+    const randomSeed = Math.floor(Math.random() * 100000);
+
+    const prompt = `Generate a unique, creative intermediate coding challenge for ${language}.
+Focus Topic: ${randomTopic}. Random Seed: ${randomSeed}.
 Return ONLY a valid JSON array containing a single object with the exact following structure:
 [
   {
@@ -58,26 +100,39 @@ Return ONLY a valid JSON array containing a single object with the exact followi
 ]
 Do not include markdown blocks like \`\`\`json. Return pure JSON string only.`;
 
+    // Step 1: Gemini API
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
+        if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_HERE") {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                signal: AbortSignal.timeout(8000)
+            });
 
-        const data = await response.json();
-        let jsonText = data.candidates[0].content.parts[0].text.trim();
-        jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-        JSON.parse(jsonText); // JSON စစ်ဆေးခြင်း
-        return jsonText;
+            const data = await response.json();
+            if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                let jsonText = data.candidates[0].content.parts[0].text.trim();
+                jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+                JSON.parse(jsonText);
+                return jsonText;
+            } else if (data.error) {
+                console.warn("Gemini API Error details:", data.error.message);
+            }
+        }
     } catch (error) {
-        console.error("AI Question Generation Failed, Fallback used:", error.message);
-        return JSON.stringify([{
-            "title": `${language.toUpperCase()} Challenge`,
-            "description": "Write a function to solve the challenge.",
-            "starter_code": "// Write your code here"
-        }]);
+        console.warn("Gemini API Error, trying PythonAnywhere API:", error.message);
     }
+
+    // Step 2: PythonAnywhere API Backup
+    const pyData = await fetchFromPythonAnywhere(language, "easy");
+    if (pyData) {
+        return pyData;
+    }
+
+    // Step 3: Local Fallback Questions
+    console.log("Using Local Static Fallback Questions.");
+    return getRandomFallback(language);
 }
 
 // Render Server မပိတ်စေရန် Ping/Pong Interval
@@ -103,7 +158,7 @@ wss.on('connection', (ws) => {
         ws.isAlive = true;
     });
 
-    ws.on('message', async (rawData) => { // ⭐ AI Call ရန် async ထည့်သွင်းထားသည်
+    ws.on('message', async (rawData) => {
         try {
             const messageStr = rawData.toString();
             const message = JSON.parse(messageStr);
@@ -118,49 +173,73 @@ wss.on('connection', (ws) => {
 
             // 2. Invite Send
             else if (message.type === 'INVITE_SEND') {
-                const targetWs = clients.get(String(message.toUser));
+                const fromUser = String(message.fromUser);
+                const toUser = String(message.toUser);
+
+                if (!registeredUserId) {
+                    registeredUserId = fromUser;
+                    clients.set(registeredUserId, ws);
+                }
+
+                const targetWs = clients.get(toUser);
                 const sent = sendJson(targetWs, {
                     type: 'INVITE_RECEIVED',
-                    fromUser: message.fromUser,
+                    fromUser: fromUser,
                     language: message.language
                 });
+
                 if (!sent) {
-                    console.log(`User ${message.toUser} is offline or unreachable.`);
+                    sendJson(ws, {
+                        type: 'INVITE_FAILED',
+                        message: `User ${toUser} is currently offline.`
+                    });
                 }
             }
 
             // 3. Invite Response (Friend Match)
             else if (message.type === 'INVITE_RESPONSE') {
-                const senderWs = clients.get(String(message.toUser));
+                const hostUserId = String(message.toUser);
+                const guestUserId = registeredUserId || String(message.fromUser || "GUEST");
 
-                if (message.action === 'ACCEPT' && senderWs) {
-                    const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                    const language = message.language || 'java';
+                if (!registeredUserId && message.fromUser) {
+                    registeredUserId = String(message.fromUser);
+                    clients.set(registeredUserId, ws);
+                }
 
-                    rooms.set(roomId, { players: [String(message.toUser), registeredUserId] });
+                const senderWs = clients.get(hostUserId);
 
-                    // ⭐ Gemini AI မေးခွန်းထုတ်ယူခြင်း
-                    const questionsPayload = await generateAIQuestion(language);
+                if (message.action === 'ACCEPT') {
+                    if (senderWs) {
+                        const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
+                        const language = message.language || 'java';
 
-                    // Host (Invite ပို့သူ) သို့ အကြောင်းကြားမည်
-                    sendJson(senderWs, {
-                        type: 'START_GAME',
-                        roomId: roomId,
-                        language: language,
-                        opponentId: registeredUserId,
-                        questions: questionsPayload
-                    });
+                        rooms.set(roomId, { players: [hostUserId, guestUserId] });
 
-                    // Guest (Invite လက်ခံသူ) သို့ အကြောင်းကြားမည်
-                    sendJson(ws, {
-                        type: 'START_GAME',
-                        roomId: roomId,
-                        language: language,
-                        opponentId: String(message.toUser),
-                        questions: questionsPayload
-                    });
+                        const questionsPayload = await generateAIQuestion(language);
 
-                    console.log(`Friend Match Start: User ${message.toUser} vs User ${registeredUserId} in ${roomId}`);
+                        sendJson(senderWs, {
+                            type: 'START_GAME',
+                            roomId: roomId,
+                            language: language,
+                            opponentId: guestUserId,
+                            questions: questionsPayload
+                        });
+
+                        sendJson(ws, {
+                            type: 'START_GAME',
+                            roomId: roomId,
+                            language: language,
+                            opponentId: hostUserId,
+                            questions: questionsPayload
+                        });
+
+                        console.log(`Friend Match Started: User ${hostUserId} vs User ${guestUserId} in ${roomId}`);
+                    } else {
+                        sendJson(ws, {
+                            type: 'INVITE_FAILED',
+                            message: `Host user ${hostUserId} is no longer connected.`
+                        });
+                    }
                 }
             }
 
@@ -189,10 +268,8 @@ wss.on('connection', (ws) => {
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                     rooms.set(roomId, { players: [userId, opponent.userId] });
 
-                    // ⭐ Gemini AI မေးခွန်းထုတ်ယူခြင်း
                     const questionsPayload = await generateAIQuestion(language);
 
-                    // User A
                     sendJson(ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
@@ -201,7 +278,6 @@ wss.on('connection', (ws) => {
                         questions: questionsPayload
                     });
 
-                    // User B
                     sendJson(opponent.ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
@@ -210,7 +286,7 @@ wss.on('connection', (ws) => {
                         questions: questionsPayload
                     });
 
-                    console.log(`Quick Match Start: User ${userId} vs User ${opponent.userId} in ${roomId}`);
+                    console.log(`Quick Match Started: User ${userId} vs User ${opponent.userId} in ${roomId}`);
                 } else {
                     const timeoutTimer = setTimeout(() => {
                         console.log(`User ${userId} Quick Match timed out.`);
@@ -289,6 +365,21 @@ wss.on('connection', (ws) => {
                 clients.delete(registeredUserId);
             }
             removeFromQueue(registeredUserId, ws);
+
+            rooms.forEach((roomData, rId) => {
+                if (roomData.players.includes(registeredUserId)) {
+                    const opponentId = roomData.players.find(id => id !== registeredUserId);
+                    if (opponentId) {
+                        const opponentWs = clients.get(opponentId);
+                        sendJson(opponentWs, {
+                            type: 'OPPONENT_DISCONNECTED',
+                            message: 'Your opponent disconnected from the match.'
+                        });
+                    }
+                    rooms.delete(rId);
+                }
+            });
+
             console.log(`User ${registeredUserId} disconnected.`);
         }
     });
