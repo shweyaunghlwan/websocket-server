@@ -116,12 +116,15 @@ Return ONLY a valid JSON array containing a single object with the exact followi
 ]
 IMPORTANT: Ensure all newline characters inside starter_code are properly escaped as \\n so that it forms valid JSON. Do not include markdown code blocks like \`\`\`json. Return pure JSON string only.`;
 
-    // Step 1: Gemini API တိုက်ရိုက် ခေါ်ယူခြင်း
+    // Step 1: Gemini API တိုက်ရိုက် ခေါ်ယူခြင်း (Header auth သုံး၍ ခေါ်ယူပါသည်)
     try {
         if (GEMINI_API_KEY) {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': GEMINI_API_KEY
+                },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
                 signal: AbortSignal.timeout(8000)
             });
@@ -306,7 +309,7 @@ wss.on('connection', (ws) => {
                         questions: questionsPayload
                     });
 
-                    console.log(`Quick Match Started: User ${userId} vs User ${opponent.userId} in ${roomId}`);
+                        console.log(`Quick Match Started: User ${userId} vs User ${opponent.userId} in ${roomId}`);
                 } else {
                     const timeoutTimer = setTimeout(() => {
                         console.log(`User ${userId} Quick Match timed out.`);
