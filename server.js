@@ -116,19 +116,23 @@ Return ONLY a valid JSON array containing a single object with the exact followi
 ]
 IMPORTANT: Ensure all newline characters inside starter_code are properly escaped as \\n so that it forms valid JSON. Do not include markdown code blocks like \`\`\`json. Return pure JSON string only.`;
 
-    // Step 1: Gemini API Call (AQ... Auth Key နှင့် Standard Key နှစ်မျိုးလုံး အဆင်ပြေစေရန် ပြင်ဆင်ထားသည်)
+    // Step 1: Gemini API Call
     try {
         if (GEMINI_API_KEY) {
             const cleanKey = GEMINI_API_KEY.trim();
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
-            
+            let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
+            const headers = { 'Content-Type': 'application/json' };
+
+            // AQ... သို့မဟုတ် AIza... Key အလိုက် Header / Query ခွဲခြားပို့ခြင်း
+            if (cleanKey.startsWith('AQ')) {
+                headers['Authorization'] = `Bearer ${cleanKey}`;
+            } else {
+                apiUrl += `?key=${encodeURIComponent(cleanKey)}`;
+            }
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${cleanKey}`,
-                    'x-goog-api-key': cleanKey
-                },
+                headers: headers,
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
                 signal: AbortSignal.timeout(8000)
             });
