@@ -9,7 +9,7 @@ let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
 const rooms = new Map(); // roomId -> { players: [userId1, userId2] }
 
 const MATCH_TIMEOUT_MS = 30000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6IGju_XNY-bAgyVdvQic7vwOskvS5alYQm6dZCljVuKFA";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PYTHONANYWHERE_URL = "https://NickayJohn26.pythonanywhere.com";
 
 console.log(`WebSocket Server initialized on port ${PORT}`);
@@ -46,12 +46,27 @@ function removeFromQueue(userId, targetWs = null) {
     return null;
 }
 
-// ⭐ Local Fallback Questions
+// Helper Function: Language Key အမည်များ ပုံမှန်ဖြစ်စေရန် (Language Normalization)
+function normalizeLanguage(lang) {
+    if (!lang) return 'java';
+    const l = String(lang).toLowerCase().trim();
+    if (l === 'c++' || l === 'cpp') return 'cpp';
+    if (l === 'python' || l === 'py') return 'python';
+    if (l === 'javascript' || l === 'js') return 'javascript';
+    return l;
+}
+
+// ⭐ Local Fallback Questions (C++, Java, Python ထည့်သွင်းထားသည်)
 const FALLBACK_QUESTIONS = {
     java: [
         [{ title: "Array Reversal", description: "Write a method to reverse an array of integers.", starter_code: "public class Solution {\n    public static void reverse(int[] arr) {\n        // Write code here\n    }\n}" }],
         [{ title: "Palindrome Check", description: "Determine if a given string is a palindrome.", starter_code: "public class Solution {\n    public static boolean isPalindrome(String s) {\n        // Write code here\n        return false;\n    }\n}" }],
         [{ title: "Find Maximum", description: "Find the maximum number in an integer array.", starter_code: "public class Solution {\n    public static int findMax(int[] nums) {\n        // Write code here\n        return 0;\n    }\n}" }]
+    ],
+    cpp: [
+        [{ title: "Reverse String (C++)", description: "Write a C++ function to reverse a string.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nvoid reverseString(string &s) {\n    // Write code here\n}" }],
+        [{ title: "Palindrome Check (C++)", description: "Determine if a string is palindrome in C++.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nbool isPalindrome(string s) {\n    // Write code here\n    return false;\n}" }],
+        [{ title: "Find Max Vector (C++)", description: "Find maximum value in a C++ std::vector<int>.", starter_code: "#include <vector>\n#include <algorithm>\nusing namespace std;\n\nint findMax(const vector<int>& nums) {\n    // Write code here\n    return 0;\n}" }]
     ],
     python: [
         [{ title: "Sum of List", description: "Write a function that returns the sum of elements in a list.", starter_code: "def sum_list(numbers):\n    # Write code here\n    pass" }],
@@ -60,7 +75,7 @@ const FALLBACK_QUESTIONS = {
 };
 
 function getRandomFallback(language) {
-    const langKey = String(language).toLowerCase();
+    const langKey = normalizeLanguage(language);
     const list = FALLBACK_QUESTIONS[langKey] || FALLBACK_QUESTIONS['java'];
     const randomIndex = Math.floor(Math.random() * list.length);
     return JSON.stringify(list[randomIndex]);
@@ -84,25 +99,26 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
 
 // ⭐ ၃ ဆင့်ခံ မေးခွန်း ထုတ်ပေးသည့် Function (Gemini -> PythonAnywhere -> Local Fallback)
 async function generateAIQuestion(language) {
+    const targetLang = normalizeLanguage(language);
     const topics = ["Arrays & Strings", "Math & Logic", "Loops & Conditions", "Data Structures", "Algorithms"];
     const randomTopic = topics[Math.floor(Math.random() * topics.length)];
     const randomSeed = Math.floor(Math.random() * 100000);
 
-    const prompt = `Generate a unique, creative intermediate coding challenge for ${language}.
+    const prompt = `Generate a unique, creative intermediate coding challenge for ${targetLang}.
 Focus Topic: ${randomTopic}. Random Seed: ${randomSeed}.
 Return ONLY a valid JSON array containing a single object with the exact following structure:
 [
   {
     "title": "Short Challenge Title",
     "description": "Clear problem statement with sample input/output format.",
-    "starter_code": "Starter code function or setup in ${language}"
+    "starter_code": "Starter code function or setup in ${targetLang}"
   }
 ]
-Do not include markdown blocks like \`\`\`json. Return pure JSON string only.`;
+IMPORTANT: Ensure all newline characters inside starter_code are properly escaped as \\n so that it forms valid JSON. Do not include markdown code blocks like \`\`\`json. Return pure JSON string only.`;
 
-    // Step 1: Gemini API
+    // Step 1: Gemini API တိုက်ရိုက် ခေါ်ယူခြင်း
     try {
-        if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_HERE") {
+        if (GEMINI_API_KEY) {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -114,25 +130,29 @@ Do not include markdown blocks like \`\`\`json. Return pure JSON string only.`;
             if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 let jsonText = data.candidates[0].content.parts[0].text.trim();
                 jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-                JSON.parse(jsonText);
+                JSON.parse(jsonText); // JSON Valid ဖြစ်မဖြစ် စစ်ဆေးခြင်း
+                console.log(`[Gemini Success] Generated question for ${targetLang}`);
                 return jsonText;
             } else if (data.error) {
-                console.warn("Gemini API Error details:", data.error.message);
+                console.warn("[Gemini API Error]:", data.error.message);
             }
+        } else {
+            console.warn("GEMINI_API_KEY Environment Variable is missing!");
         }
     } catch (error) {
-        console.warn("Gemini API Error, trying PythonAnywhere API:", error.message);
+        console.warn("[Gemini Fetch Failed]:", error.message);
     }
 
     // Step 2: PythonAnywhere API Backup
-    const pyData = await fetchFromPythonAnywhere(language, "easy");
+    console.log("Trying PythonAnywhere Backup...");
+    const pyData = await fetchFromPythonAnywhere(targetLang, "easy");
     if (pyData) {
         return pyData;
     }
 
     // Step 3: Local Fallback Questions
-    console.log("Using Local Static Fallback Questions.");
-    return getRandomFallback(language);
+    console.log(`[Fallback Used] Selected static question for ${targetLang}`);
+    return getRandomFallback(targetLang);
 }
 
 // Render Server မပိတ်စေရန် Ping/Pong Interval
