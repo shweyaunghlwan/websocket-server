@@ -123,7 +123,6 @@ IMPORTANT: Ensure all newline characters inside starter_code are properly escape
             let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
             const headers = { 'Content-Type': 'application/json' };
 
-            // AQ... သို့မဟုတ် AIza... Key အလိုက် Header / Query ခွဲခြားပို့ခြင်း
             if (cleanKey.startsWith('AQ')) {
                 headers['Authorization'] = `Bearer ${cleanKey}`;
             } else {
@@ -141,7 +140,7 @@ IMPORTANT: Ensure all newline characters inside starter_code are properly escape
             if (response.ok && !data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 let jsonText = data.candidates[0].content.parts[0].text.trim();
                 jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-                JSON.parse(jsonText); // Valid JSON စစ်ဆေးခြင်း
+                JSON.parse(jsonText);
                 console.log(`[Gemini Success] Generated question for ${targetLang}`);
                 return jsonText;
             } else if (data.error) {
@@ -367,12 +366,42 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 7. Game Over
+            // ⭐ 7. Game Over (PythonAnywhere Match Finish API သို့ ရလဒ်များ သွားရောက်သိမ်းဆည်းရန် ပြင်ဆင်ထားသည်)
             else if (message.type === 'GAME_OVER') {
-                const { roomId, winnerId } = message;
+                const { roomId, winnerId, player1Score, player2Score } = message;
                 const room = rooms.get(roomId);
 
                 if (room) {
+                    // Winner မဟုတ်သော ကစားသမားအား Loser ID အဖြစ် ခွဲခြားသတ်မှတ်ခြင်း
+                    const loserId = room.players.find(id => String(id) !== String(winnerId)) || null;
+
+                    // PythonAnywhere API သို့ HTTP POST ပို့ဆောင်ခြင်း
+                    try {
+                        fetch(`${PYTHONANYWHERE_URL}/api/match/finish`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                winner_id: winnerId,
+                                loser_id: loserId,
+                                room_id: roomId,
+                                player1_score: player1Score || 100,
+                                player2_score: player2Score || 50,
+                                xp: 50,
+                                loser_xp: 10
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            console.log(`[PythonAnywhere Match Finish Success] Room: ${roomId}`, data);
+                        })
+                        .catch(err => {
+                            console.error("[PythonAnywhere Match Finish Error]:", err.message);
+                        });
+                    } catch (err) {
+                        console.error("Match Finish Request Exception:", err.message);
+                    }
+
+                    // ကစားသမားများထံ GAME_OVER Message ဖြန့်ဝေခြင်း
                     room.players.forEach(pId => {
                         const targetWs = clients.get(pId);
                         sendJson(targetWs, {
@@ -380,8 +409,9 @@ wss.on('connection', (ws) => {
                             winnerId: winnerId
                         });
                     });
+
                     rooms.delete(roomId);
-                    console.log(`Game Over in Room ${roomId}. Winner: ${winnerId}`);
+                    console.log(`Game Over in Room ${roomId}. Winner: ${winnerId}, Loser: ${loserId}`);
                 }
             }
 
