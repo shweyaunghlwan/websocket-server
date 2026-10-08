@@ -175,7 +175,8 @@ IMPORTANT:
     try {
         if (GEMINI_API_KEY) {
             const cleanKey = GEMINI_API_KEY.trim();
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
+            // ⭐ Model Name အား gemini-2.5-flash သို့ အဆင့်မြှင့်ထားပါသည်
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
