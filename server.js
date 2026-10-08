@@ -56,28 +56,28 @@ function normalizeLanguage(lang) {
     return l;
 }
 
-// ⭐ Local Fallback Questions (MCQ ၄ ခု + Coding ၁ ခု = စုစုပေါင်း ၅ ခုစီ ထည့်သွင်းထားသည်)
+// ⭐ Sololearn Style Static Fallback Questions (Code Snippets & Output Predictions)
 const FALLBACK_QUESTIONS = {
     java: [
-        { type: "mcq", title: "Java Data Type", description: "Which of the following is a primitive data type in Java?", options: ["String", "int", "ArrayList", "Integer"], correct_answer: 1 },
-        { type: "mcq", title: "Java OOP", description: "Which keyword is used to inherit a class in Java?", options: ["implements", "extends", "inherits", "super"], correct_answer: 1 },
-        { type: "mcq", title: "Java Execution", description: "How many times does a 'do-while' loop execute at minimum?", options: ["0 times", "1 time", "2 times", "Infinite"], correct_answer: 1 },
-        { type: "mcq", title: "Java Memory", description: "Where are objects created in Java stored?", options: ["Stack Memory", "Heap Memory", "Class Area", "CPU Register"], correct_answer: 1 },
-        { type: "coding", title: "Find Maximum", description: "Find the maximum number in an integer array.", starter_code: "public class Solution {\n    public static int findMax(int[] nums) {\n        // Write code here\n        return 0;\n    }\n}" }
+        { type: "mcq", title: "Output Prediction", code_snippet: "int x = 5;\nSystem.out.println(x++ + ++x);", description: "What will be printed?", options: ["11", "12", "10", "Compilation Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Array Index", code_snippet: "int[] a = {1, 2, 3};\nSystem.out.println(a[3]);", description: "What is the result of running this code?", options: ["3", "0", "ArrayIndexOutOfBoundsException", "Compilation Error"], correct_answer: 2, time_limit: 15 },
+        { type: "mcq", title: "String Equality", code_snippet: "String a = \"Java\";\nString b = new String(\"Java\");\nSystem.out.println(a == b);", description: "What is the output?", options: ["true", "false", "null", "Compilation Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Loop Execution", code_snippet: "int count = 0;\nfor(int i=0; i<5; i+=2) count++;\nSystem.out.println(count);", description: "What will count be?", options: ["2", "3", "5", "1"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Ternary Operator", code_snippet: "int x = 10;\nint y = (x > 5) ? (x < 15 ? 1 : 2) : 3;\nSystem.out.println(y);", description: "What is the output?", options: ["1", "2", "3", "10"], correct_answer: 0, time_limit: 15 }
     ],
     cpp: [
-        { type: "mcq", title: "C++ Header", description: "Which header file is required for std::cout in C++?", options: ["<stdio.h>", "<iostream>", "<stdlib.h>", "<string>"], correct_answer: 1 },
-        { type: "mcq", title: "C++ Pointer", description: "Which operator is used to get the address of a variable?", options: ["*", "&", "->", "."], correct_answer: 1 },
-        { type: "mcq", title: "C++ Vector", description: "Which function adds an element to the end of a std::vector?", options: ["add()", "append()", "push_back()", "insert()"], correct_answer: 2 },
-        { type: "mcq", title: "C++ Memory", description: "Which keyword is used to allocate memory dynamically in C++?", options: ["malloc", "new", "alloc", "create"], correct_answer: 1 },
-        { type: "coding", title: "Reverse String (C++)", description: "Write a C++ function to reverse a string.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nvoid reverseString(string &s) {\n    // Write code here\n}" }
+        { type: "mcq", title: "C++ Pointer Output", code_snippet: "int a = 10;\nint *p = &a;\n*p = 20;\ncout << a;", description: "What is the output?", options: ["10", "20", "Garbage value", "Compilation Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Vector Size", code_snippet: "vector<int> v = {1, 2, 3};\nv.pop_back();\ncout << v.size();", description: "What is the size of vector v?", options: ["3", "2", "1", "0"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Increment", code_snippet: "int x = 3;\ncout << x++ * 2;", description: "What will be printed?", options: ["6", "8", "7", "4"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "C++ Reference", code_snippet: "int a = 5;\nint &r = a;\nr = 10;\ncout << a;", description: "What will be printed?", options: ["5", "10", "Error", "Address of a"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Default Values", code_snippet: "bool flag;\ncout << flag;", description: "What is the output or behavior?", options: ["true", "false", "Undefined / Uninitialized", "1"], correct_answer: 2, time_limit: 15 }
     ],
     python: [
-        { type: "mcq", title: "Python Data Structure", description: "Which of the following data types is immutable in Python?", options: ["List", "Dictionary", "Tuple", "Set"], correct_answer: 2 },
-        { type: "mcq", title: "Python Loop", description: "Which keyword is used to exit a loop early in Python?", options: ["stop", "exit", "break", "return"], correct_answer: 2 },
-        { type: "mcq", title: "Python Function", description: "Which keyword is used to define a function in Python?", options: ["function", "def", "func", "define"], correct_answer: 1 },
-        { type: "mcq", title: "Python List", description: "What is the index of the first element in a Python list?", options: ["0", "1", "-1", "None"], correct_answer: 0 },
-        { type: "coding", title: "Sum of List", description: "Write a function that returns the sum of elements in a list.", starter_code: "def sum_list(numbers):\n    # Write code here\n    pass" }
+        { type: "mcq", title: "Python List Slicing", code_snippet: "nums = [10, 20, 30, 40, 50]\nprint(nums[1:4])", description: "What will be printed?", options: ["[20, 30, 40]", "[10, 20, 30]", "[20, 30]", "[30, 40, 50]"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "Python Dict Get", code_snippet: "d = {'a': 1, 'b': 2}\nprint(d.get('c', 3))", description: "What is the output?", options: ["None", "KeyError", "3", "c"], correct_answer: 2, time_limit: 15 },
+        { type: "mcq", title: "Python String Multiply", code_snippet: "print('2' * 3)", description: "What is the output?", options: ["6", "222", "Error", "23"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Python Boolean Evaluation", code_snippet: "print(bool([]) or bool('False'))", description: "What will be printed?", options: ["True", "False", "None", "Error"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "Python Lambda", code_snippet: "f = lambda x, y: x if x > y else y\nprint(f(7, 4))", description: "What is the output?", options: ["7", "4", "True", "SyntaxError"], correct_answer: 0, time_limit: 15 }
     ]
 };
 
@@ -103,66 +103,78 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ MCQ ၄ ခု + Coding ၁ ခု (မေးခွန်း ၅ ခု) အား AI မှ ထုတ်ပေးမည့် Generator Function
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
     const randomSeed = Math.floor(Math.random() * 100000);
 
-    const prompt = `Generate a JSON array of exactly 5 programming questions for ${targetLang} language.
+    const prompt = `Generate a JSON array of exactly 5 Sololearn-style fast-paced coding challenge questions for ${targetLang}.
 Seed: ${randomSeed}.
 
-Structure Rules:
-- The first 4 questions MUST be Multiple Choice Questions (type: "mcq").
-- The 5th question MUST be a Coding Challenge (type: "coding").
+Goal: Test quick code output prediction, syntax awareness, logic, and debugging in a 1v1 challenge.
+
+Rules:
+- Generate 5 Multiple Choice Questions (type: "mcq").
+- Focus heavily on "What is the output of this code snippet?" or "Fill in the blank/syntax logic".
+- Provide a short, realistic code snippet for each question in "code_snippet".
 
 Exact JSON Format required (no markdown code blocks, pure JSON array):
 [
   {
     "type": "mcq",
-    "title": "MCQ Question 1 Title",
-    "description": "Clear question text?",
+    "title": "Short Question Title (e.g., Output Prediction)",
+    "code_snippet": "short code snippet in ${targetLang}",
+    "description": "Clear question (e.g. What will be printed?)",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_answer": 0
+    "correct_answer": 0,
+    "time_limit": 15
   },
   {
     "type": "mcq",
-    "title": "MCQ Question 2 Title",
+    "title": "Short Question Title",
+    "code_snippet": "short code snippet in ${targetLang}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_answer": 1
+    "correct_answer": 1,
+    "time_limit": 15
   },
   {
     "type": "mcq",
-    "title": "MCQ Question 3 Title",
+    "title": "Short Question Title",
+    "code_snippet": "short code snippet in ${targetLang}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_answer": 2
+    "correct_answer": 2,
+    "time_limit": 15
   },
   {
     "type": "mcq",
-    "title": "MCQ Question 4 Title",
+    "title": "Short Question Title",
+    "code_snippet": "short code snippet in ${targetLang}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correct_answer": 3
+    "correct_answer": 3,
+    "time_limit": 15
   },
   {
-    "type": "coding",
-    "title": "Short Challenge Title",
-    "description": "Detailed coding challenge description.",
-    "starter_code": "Boilerplate starter code for ${targetLang}"
+    "type": "mcq",
+    "title": "Short Question Title",
+    "code_snippet": "short code snippet in ${targetLang}",
+    "description": "Clear question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 0,
+    "time_limit": 15
   }
 ]
 
 IMPORTANT:
-1. "correct_answer" must be a 0-based integer index (0, 1, 2, or 3) indicating the correct choice in "options".
-2. Escape all newlines in "starter_code" as \\n.
+1. "correct_answer" must be 0, 1, 2, or 3.
+2. Escape all newlines in "code_snippet" as \\n.
 3. Do not wrap in \`\`\`json markdown. Return pure JSON string only.`;
 
-    // Step 1: Gemini API Call
     try {
         if (GEMINI_API_KEY) {
             const cleanKey = GEMINI_API_KEY.trim();
-            // ⭐ AQ... သို့မဟုတ် AIza... မည်သည့် Key မဆို ?key= ဖြင့် ပုံမှန် ပို့ပေးမည်
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
             const response = await fetch(apiUrl, {
@@ -179,7 +191,7 @@ IMPORTANT:
                 
                 const parsed = JSON.parse(jsonText);
                 if (Array.isArray(parsed) && parsed.length === 5) {
-                    console.log(`[Gemini Success] Generated 5 questions (4 MCQ + 1 Coding) for ${targetLang}`);
+                    console.log(`[Gemini Success] Generated 5 Sololearn-style questions for ${targetLang}`);
                     return jsonText;
                 }
             } else if (data.error) {
@@ -199,8 +211,8 @@ IMPORTANT:
         return pyData;
     }
 
-    // Step 3: Local Fallback Questions
-    console.log(`[Fallback Used] Selected 5 static questions for ${targetLang}`);
+    // Step 3: Fallback Static Questions
+    console.log(`[Fallback Used] Selected 5 Sololearn-style static questions for ${targetLang}`);
     return getRandomFallback(targetLang);
 }
 
