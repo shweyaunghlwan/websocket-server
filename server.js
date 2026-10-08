@@ -103,7 +103,7 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator with Retry Mechanism
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -172,37 +172,50 @@ IMPORTANT:
 2. Escape all newlines in "code_snippet" as \\n.
 3. Do not wrap in \`\`\`json markdown. Return pure JSON string only.`;
 
-    try {
-        if (GEMINI_API_KEY) {
-            const cleanKey = GEMINI_API_KEY.trim();
-            
-       // ⭐ gemini-3.8-flash သို့ ပြောင်းလဲပြင်ဆင်ပါ
-const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                signal: AbortSignal.timeout(25000)
-            });
+    if (GEMINI_API_KEY) {
+        const cleanKey = GEMINI_API_KEY.trim();
+        const models = ["gemini-3.8-flash", "gemini-1.5-flash"];
 
-            const data = await response.json();
-            if (response.ok && !data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                let jsonText = data.candidates[0].content.parts[0].text.trim();
-                jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-                
-                const parsed = JSON.parse(jsonText);
-                if (Array.isArray(parsed) && parsed.length === 5) {
-                    console.log(`[Gemini Success] Generated 5 Sololearn-style questions for ${targetLang}`);
-                    return jsonText;
+        // High demand သို့မဟုတ် timeout ကြုံရင် ၃ ကြိမ်အထိ ထပ်ခါတလဲလဲ ကြိုးစားမည့်စနစ်
+        for (const modelName of models) {
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    console.log(`[Gemini] Attempt ${attempt} using ${modelName} for ${targetLang}...`);
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                        signal: AbortSignal.timeout(25000)
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && !data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                        let jsonText = data.candidates[0].content.parts[0].text.trim();
+                        jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
+                        
+                        const parsed = JSON.parse(jsonText);
+                        if (Array.isArray(parsed) && parsed.length === 5) {
+                            console.log(`[Gemini Success via ${modelName}] Generated 5 Sololearn-style questions for ${targetLang}`);
+                            return jsonText;
+                        }
+                    } else if (data.error) {
+                        console.warn(`[Gemini ${modelName} Error]:`, data.error.message);
+                        if (data.error.message.includes("is no longer available") || data.error.code === 404) {
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`[Gemini ${modelName} Attempt ${attempt} Failed]:`, error.message);
                 }
-            } else if (data.error) {
-                console.warn("[Gemini API Error]:", data.error.message);
+
+                // ထပ်မကြိုးစားမီ ၁.၅ စက္ကန့် ခဏစောင့်ပါ
+                await new Promise(resolve => setTimeout(resolve, 1500));
             }
-        } else {
-            console.warn("GEMINI_API_KEY Environment Variable is missing!");
         }
-    } catch (error) {
-        console.warn("[Gemini Fetch Failed]:", error.message);
+    } else {
+        console.warn("GEMINI_API_KEY Environment Variable is missing!");
     }
 
     // Step 2: PythonAnywhere API Backup
