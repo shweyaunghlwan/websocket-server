@@ -56,29 +56,35 @@ function normalizeLanguage(lang) {
     return l;
 }
 
-// ⭐ Local Fallback Questions (C++, Java, Python ထည့်သွင်းထားသည်)
+// ⭐ Local Fallback Questions (MCQ ၄ ခု + Coding ၁ ခု = စုစုပေါင်း ၅ ခုစီ ထည့်သွင်းထားသည်)
 const FALLBACK_QUESTIONS = {
     java: [
-        [{ title: "Array Reversal", description: "Write a method to reverse an array of integers.", starter_code: "public class Solution {\n    public static void reverse(int[] arr) {\n        // Write code here\n    }\n}" }],
-        [{ title: "Palindrome Check", description: "Determine if a given string is a palindrome.", starter_code: "public class Solution {\n    public static boolean isPalindrome(String s) {\n        // Write code here\n        return false;\n    }\n}" }],
-        [{ title: "Find Maximum", description: "Find the maximum number in an integer array.", starter_code: "public class Solution {\n    public static int findMax(int[] nums) {\n        // Write code here\n        return 0;\n    }\n}" }]
+        { type: "mcq", title: "Java Data Type", description: "Which of the following is a primitive data type in Java?", options: ["String", "int", "ArrayList", "Integer"], correct_answer: 1 },
+        { type: "mcq", title: "Java OOP", description: "Which keyword is used to inherit a class in Java?", options: ["implements", "extends", "inherits", "super"], correct_answer: 1 },
+        { type: "mcq", title: "Java Execution", description: "How many times does a 'do-while' loop execute at minimum?", options: ["0 times", "1 time", "2 times", "Infinite"], correct_answer: 1 },
+        { type: "mcq", title: "Java Memory", description: "Where are objects created in Java stored?", options: ["Stack Memory", "Heap Memory", "Class Area", "CPU Register"], correct_answer: 1 },
+        { type: "coding", title: "Find Maximum", description: "Find the maximum number in an integer array.", starter_code: "public class Solution {\n    public static int findMax(int[] nums) {\n        // Write code here\n        return 0;\n    }\n}" }
     ],
     cpp: [
-        [{ title: "Reverse String (C++)", description: "Write a C++ function to reverse a string.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nvoid reverseString(string &s) {\n    // Write code here\n}" }],
-        [{ title: "Palindrome Check (C++)", description: "Determine if a string is palindrome in C++.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nbool isPalindrome(string s) {\n    // Write code here\n    return false;\n}" }],
-        [{ title: "Find Max Vector (C++)", description: "Find maximum value in a C++ std::vector<int>.", starter_code: "#include <vector>\n#include <algorithm>\nusing namespace std;\n\nint findMax(const vector<int>& nums) {\n    // Write code here\n    return 0;\n}" }]
+        { type: "mcq", title: "C++ Header", description: "Which header file is required for std::cout in C++?", options: ["<stdio.h>", "<iostream>", "<stdlib.h>", "<string>"], correct_answer: 1 },
+        { type: "mcq", title: "C++ Pointer", description: "Which operator is used to get the address of a variable?", options: ["*", "&", "->", "."], correct_answer: 1 },
+        { type: "mcq", title: "C++ Vector", description: "Which function adds an element to the end of a std::vector?", options: ["add()", "append()", "push_back()", "insert()"], correct_answer: 2 },
+        { type: "mcq", title: "C++ Memory", description: "Which keyword is used to allocate memory dynamically in C++?", options: ["malloc", "new", "alloc", "create"], correct_answer: 1 },
+        { type: "coding", title: "Reverse String (C++)", description: "Write a C++ function to reverse a string.", starter_code: "#include <iostream>\n#include <string>\nusing namespace std;\n\nvoid reverseString(string &s) {\n    // Write code here\n}" }
     ],
     python: [
-        [{ title: "Sum of List", description: "Write a function that returns the sum of elements in a list.", starter_code: "def sum_list(numbers):\n    # Write code here\n    pass" }],
-        [{ title: "Count Vowels", description: "Count the number of vowels in a string.", starter_code: "def count_vowels(s):\n    # Write code here\n    pass" }]
+        { type: "mcq", title: "Python Data Structure", description: "Which of the following data types is immutable in Python?", options: ["List", "Dictionary", "Tuple", "Set"], correct_answer: 2 },
+        { type: "mcq", title: "Python Loop", description: "Which keyword is used to exit a loop early in Python?", options: ["stop", "exit", "break", "return"], correct_answer: 2 },
+        { type: "mcq", title: "Python Function", description: "Which keyword is used to define a function in Python?", options: ["function", "def", "func", "define"], correct_answer: 1 },
+        { type: "mcq", title: "Python List", description: "What is the index of the first element in a Python list?", options: ["0", "1", "-1", "None"], correct_answer: 0 },
+        { type: "coding", title: "Sum of List", description: "Write a function that returns the sum of elements in a list.", starter_code: "def sum_list(numbers):\n    # Write code here\n    pass" }
     ]
 };
 
 function getRandomFallback(language) {
     const langKey = normalizeLanguage(language);
     const list = FALLBACK_QUESTIONS[langKey] || FALLBACK_QUESTIONS['java'];
-    const randomIndex = Math.floor(Math.random() * list.length);
-    return JSON.stringify(list[randomIndex]);
+    return JSON.stringify(list);
 }
 
 // ⭐ PythonAnywhere API မှ မေးခွန်း လှမ်းတောင်းသည့် Function
@@ -88,7 +94,7 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
         const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
         if (res.ok) {
             const data = await res.text();
-            JSON.parse(data); // Valid JSON စစ်သည်
+            JSON.parse(data);
             return data;
         }
     } catch (e) {
@@ -97,24 +103,60 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ ၃ ဆင့်ခံ မေးခွန်း ထုတ်ပေးသည့် Function (Gemini -> PythonAnywhere -> Local Fallback)
+// ⭐ MCQ ၄ ခု + Coding ၁ ခု (မေးခွန်း ၅ ခု) အား AI မှ ထုတ်ပေးမည့် Generator Function
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
-    const topics = ["Arrays & Strings", "Math & Logic", "Loops & Conditions", "Data Structures", "Algorithms"];
-    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
     const randomSeed = Math.floor(Math.random() * 100000);
 
-    const prompt = `Generate a unique, creative intermediate coding challenge for ${targetLang}.
-Focus Topic: ${randomTopic}. Random Seed: ${randomSeed}.
-Return ONLY a valid JSON array containing a single object with the exact following structure:
+    const prompt = `Generate a JSON array of exactly 5 programming questions for ${targetLang} language.
+Seed: ${randomSeed}.
+
+Structure Rules:
+- The first 4 questions MUST be Multiple Choice Questions (type: "mcq").
+- The 5th question MUST be a Coding Challenge (type: "coding").
+
+Exact JSON Format required (no markdown code blocks, pure JSON array):
 [
   {
+    "type": "mcq",
+    "title": "MCQ Question 1 Title",
+    "description": "Clear question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 0
+  },
+  {
+    "type": "mcq",
+    "title": "MCQ Question 2 Title",
+    "description": "Clear question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 1
+  },
+  {
+    "type": "mcq",
+    "title": "MCQ Question 3 Title",
+    "description": "Clear question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 2
+  },
+  {
+    "type": "mcq",
+    "title": "MCQ Question 4 Title",
+    "description": "Clear question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": 3
+  },
+  {
+    "type": "coding",
     "title": "Short Challenge Title",
-    "description": "Clear problem statement with sample input/output format.",
-    "starter_code": "Starter code function or setup in ${targetLang}"
+    "description": "Detailed coding challenge description.",
+    "starter_code": "Boilerplate starter code for ${targetLang}"
   }
 ]
-IMPORTANT: Ensure all newline characters inside starter_code are properly escaped as \\n so that it forms valid JSON. Do not include markdown code blocks like \`\`\`json. Return pure JSON string only.`;
+
+IMPORTANT:
+1. "correct_answer" must be a 0-based integer index (0, 1, 2, or 3) indicating the correct choice in "options".
+2. Escape all newlines in "starter_code" as \\n.
+3. Do not wrap in \`\`\`json markdown. Return pure JSON string only.`;
 
     // Step 1: Gemini API Call
     try {
@@ -133,16 +175,19 @@ IMPORTANT: Ensure all newline characters inside starter_code are properly escape
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                signal: AbortSignal.timeout(8000)
+                signal: AbortSignal.timeout(9000)
             });
 
             const data = await response.json();
             if (response.ok && !data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 let jsonText = data.candidates[0].content.parts[0].text.trim();
                 jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-                JSON.parse(jsonText);
-                console.log(`[Gemini Success] Generated question for ${targetLang}`);
-                return jsonText;
+                
+                const parsed = JSON.parse(jsonText);
+                if (Array.isArray(parsed) && parsed.length === 5) {
+                    console.log(`[Gemini Success] Generated 5 questions (4 MCQ + 1 Coding) for ${targetLang}`);
+                    return jsonText;
+                }
             } else if (data.error) {
                 console.warn("[Gemini API Error]:", data.error.message);
             }
@@ -161,7 +206,7 @@ IMPORTANT: Ensure all newline characters inside starter_code are properly escape
     }
 
     // Step 3: Local Fallback Questions
-    console.log(`[Fallback Used] Selected static question for ${targetLang}`);
+    console.log(`[Fallback Used] Selected 5 static questions for ${targetLang}`);
     return getRandomFallback(targetLang);
 }
 
@@ -245,6 +290,7 @@ wss.on('connection', (ws) => {
 
                         rooms.set(roomId, { players: [hostUserId, guestUserId] });
 
+                        // ⭐ မေးခွန်း ၅ ခုကို AI ထံမှ ၁ ကြိမ်သာ ထုတ်ယူပြီး Player ၂ ယောက်လုံးထံ တစ်ပြိုင်နက်တည်း ပို့ပေးသည်
                         const questionsPayload = await generateAIQuestion(language);
 
                         sendJson(senderWs, {
@@ -298,6 +344,7 @@ wss.on('connection', (ws) => {
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                     rooms.set(roomId, { players: [userId, opponent.userId] });
 
+                    // ⭐ မေးခွန်း ၅ ခုကို AI ထံမှ ၁ ကြိမ်သာ ထုတ်ယူပြီး Player ၂ ယောက်လုံးထံ တစ်ပြိုင်နက်တည်း ပို့ပေးသည်
                     const questionsPayload = await generateAIQuestion(language);
 
                     sendJson(ws, {
@@ -366,16 +413,14 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // ⭐ 7. Game Over (PythonAnywhere Match Finish API သို့ ရလဒ်များ သွားရောက်သိမ်းဆည်းရန် ပြင်ဆင်ထားသည်)
+            // 7. Game Over
             else if (message.type === 'GAME_OVER') {
                 const { roomId, winnerId, player1Score, player2Score } = message;
                 const room = rooms.get(roomId);
 
                 if (room) {
-                    // Winner မဟုတ်သော ကစားသမားအား Loser ID အဖြစ် ခွဲခြားသတ်မှတ်ခြင်း
                     const loserId = room.players.find(id => String(id) !== String(winnerId)) || null;
 
-                    // PythonAnywhere API သို့ HTTP POST ပို့ဆောင်ခြင်း
                     try {
                         fetch(`${PYTHONANYWHERE_URL}/api/match/finish`, {
                             method: 'POST',
@@ -401,7 +446,6 @@ wss.on('connection', (ws) => {
                         console.error("Match Finish Request Exception:", err.message);
                     }
 
-                    // ကစားသမားများထံ GAME_OVER Message ဖြန့်ဝေခြင်း
                     room.players.forEach(pId => {
                         const targetWs = clients.get(pId);
                         sendJson(targetWs, {
