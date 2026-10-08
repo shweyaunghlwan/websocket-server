@@ -103,7 +103,7 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator with Retry Mechanism
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator with 2-Attempt Retry Limit
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -176,9 +176,9 @@ IMPORTANT:
         const cleanKey = GEMINI_API_KEY.trim();
         const models = ["gemini-3.8-flash", "gemini-1.5-flash"];
 
-        // High demand သို့မဟုတ် timeout ကြုံရင် ၃ ကြိမ်အထိ ထပ်ခါတလဲလဲ ကြိုးစားမည့်စနစ်
+        // ⭐ Retry limit ကို ၂ ကြိမ်သို့ သတ်မှတ်ထားသည်
         for (const modelName of models) {
-            for (let attempt = 1; attempt <= 3; attempt++) {
+            for (let attempt = 1; attempt <= 2; attempt++) {
                 try {
                     console.log(`[Gemini] Attempt ${attempt} using ${modelName} for ${targetLang}...`);
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
