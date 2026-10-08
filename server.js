@@ -162,18 +162,12 @@ IMPORTANT:
     try {
         if (GEMINI_API_KEY) {
             const cleanKey = GEMINI_API_KEY.trim();
-            let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
-            const headers = { 'Content-Type': 'application/json' };
-
-            if (cleanKey.startsWith('AQ')) {
-                headers['Authorization'] = `Bearer ${cleanKey}`;
-            } else {
-                apiUrl += `?key=${encodeURIComponent(cleanKey)}`;
-            }
+            // ⭐ AQ... သို့မဟုတ် AIza... မည်သည့် Key မဆို ?key= ဖြင့် ပုံမှန် ပို့ပေးမည်
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: headers,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
                 signal: AbortSignal.timeout(9000)
             });
@@ -290,7 +284,6 @@ wss.on('connection', (ws) => {
 
                         rooms.set(roomId, { players: [hostUserId, guestUserId] });
 
-                        // ⭐ မေးခွန်း ၅ ခုကို AI ထံမှ ၁ ကြိမ်သာ ထုတ်ယူပြီး Player ၂ ယောက်လုံးထံ တစ်ပြိုင်နက်တည်း ပို့ပေးသည်
                         const questionsPayload = await generateAIQuestion(language);
 
                         sendJson(senderWs, {
@@ -344,7 +337,6 @@ wss.on('connection', (ws) => {
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                     rooms.set(roomId, { players: [userId, opponent.userId] });
 
-                    // ⭐ မေးခွန်း ၅ ခုကို AI ထံမှ ၁ ကြိမ်သာ ထုတ်ယူပြီး Player ၂ ယောက်လုံးထံ တစ်ပြိုင်နက်တည်း ပို့ပေးသည်
                     const questionsPayload = await generateAIQuestion(language);
 
                     sendJson(ws, {
