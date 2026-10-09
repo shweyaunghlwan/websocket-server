@@ -139,7 +139,7 @@ async function fetchFromPythonAnywhere(rawLanguage) {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Level-Aware Prompt)
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Level-Aware Prompt & Optimized Speed)
 async function generateAIQuestion(rawLanguage) {
     const { langKey, level, fullKey } = parseLangAndLevel(rawLanguage);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -228,10 +228,10 @@ IMPORTANT:
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             responseMimeType: "application/json",
-                            temperature: 0.7
+                            temperature: 0.3 // ပိုမိုမြန်ဆန်စွာ အဖြေထုတ်ရန် သတ်မှတ်ထားသည်
                         }
                     }),
-                    signal: AbortSignal.timeout(5000)
+                    signal: AbortSignal.timeout(8000) // Timeout ကို ၈ စက္ကန့်ထိ တိုးမြှင့်လိုက်သည်
                 });
 
                 const data = await response.json();
