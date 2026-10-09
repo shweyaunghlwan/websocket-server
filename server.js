@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 8080;
 const wss = new WebSocketServer({ port: PORT });
 
 const clients = new Map(); // userId -> ws
-let quickMatchQueue = []; // [{ userId, language, ws, joinedAt, timeoutTimer }]
+let quickMatchQueue = []; // [{ userId, languageKey, rawLanguage, ws, joinedAt, timeoutTimer }]
 const rooms = new Map(); // roomId -> { players: [userId1, userId2] }
 
 const MATCH_TIMEOUT_MS = 30000;
@@ -46,51 +46,87 @@ function removeFromQueue(userId, targetWs = null) {
     return null;
 }
 
-// Helper Function: Language Key အမည်များ ပုံမှန်ဖြစ်စေရန် (Language Normalization)
-function normalizeLanguage(lang) {
-    if (!lang) return 'java';
-    const l = String(lang).toLowerCase().trim();
-    if (l === 'c++' || l === 'cpp') return 'cpp';
-    if (l === 'python' || l === 'py') return 'python';
-    if (l === 'javascript' || l === 'js') return 'javascript';
-    return l;
+// ⭐ Helper Function: Language နှင့် Difficulty (Basic / Intermediate) ကို ခွဲခြားထုတ်ယူရန်
+function parseLangAndLevel(input) {
+    if (!input) return { langKey: 'java', level: 'basic', fullKey: 'java_basic' };
+    
+    const str = String(input).toLowerCase().trim();
+    
+    let level = 'basic';
+    if (str.includes('intermediate')) {
+        level = 'intermediate';
+    }
+
+    let langKey = 'java';
+    if (str.includes('c++') || str.includes('cpp')) langKey = 'cpp';
+    else if (str.includes('python') || str.includes('py')) langKey = 'python';
+    else if (str.includes('javascript') || str.includes('js')) langKey = 'javascript';
+    else if (str.includes('java')) langKey = 'java';
+
+    return {
+        langKey,
+        level,
+        fullKey: `${langKey}_${level}`
+    };
 }
 
-// ⭐ Sololearn Style Static Fallback Questions (Code Snippets & Output Predictions)
+// ⭐ Sololearn Style Static Fallback Questions (Basic & Intermediate Separated)
 const FALLBACK_QUESTIONS = {
-    java: [
-        { type: "mcq", title: "Output Prediction", code_snippet: "int x = 5;\nSystem.out.println(x++ + ++x);", description: "What will be printed?", options: ["11", "12", "10", "Compilation Error"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "Array Index", code_snippet: "int[] a = {1, 2, 3};\nSystem.out.println(a[3]);", description: "What is the result of running this code?", options: ["3", "0", "ArrayIndexOutOfBoundsException", "Compilation Error"], correct_answer: 2, time_limit: 15 },
-        { type: "mcq", title: "String Equality", code_snippet: "String a = \"Java\";\nString b = new String(\"Java\");\nSystem.out.println(a == b);", description: "What is the output?", options: ["true", "false", "null", "Compilation Error"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "Loop Execution", code_snippet: "int count = 0;\nfor(int i=0; i<5; i+=2) count++;\nSystem.out.println(count);", description: "What will count be?", options: ["2", "3", "5", "1"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "Ternary Operator", code_snippet: "int x = 10;\nint y = (x > 5) ? (x < 15 ? 1 : 2) : 3;\nSystem.out.println(y);", description: "What is the output?", options: ["1", "2", "3", "10"], correct_answer: 0, time_limit: 15 }
-    ],
-    cpp: [
-        { type: "mcq", title: "C++ Pointer Output", code_snippet: "int a = 10;\nint *p = &a;\n*p = 20;\ncout << a;", description: "What is the output?", options: ["10", "20", "Garbage value", "Compilation Error"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "C++ Vector Size", code_snippet: "vector<int> v = {1, 2, 3};\nv.pop_back();\ncout << v.size();", description: "What is the size of vector v?", options: ["3", "2", "1", "0"], correct_answer: 1, time_limit: 15 },
+    cpp_basic: [
+        { type: "mcq", title: "C++ Variable Division", code_snippet: "int a = 5;\nint b = 2;\ncout << a / b;", description: "What is the output?", options: ["2.5", "2", "3", "Error"], correct_answer: 1, time_limit: 15 },
         { type: "mcq", title: "C++ Increment", code_snippet: "int x = 3;\ncout << x++ * 2;", description: "What will be printed?", options: ["6", "8", "7", "4"], correct_answer: 0, time_limit: 15 },
-        { type: "mcq", title: "C++ Reference", code_snippet: "int a = 5;\nint &r = a;\nr = 10;\ncout << a;", description: "What will be printed?", options: ["5", "10", "Error", "Address of a"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "C++ Default Values", code_snippet: "bool flag;\ncout << flag;", description: "What is the output or behavior?", options: ["true", "false", "Undefined / Uninitialized", "1"], correct_answer: 2, time_limit: 15 }
+        { type: "mcq", title: "C++ Loop Output", code_snippet: "for(int i=0; i<3; i++) cout << i;", description: "What is printed?", options: ["012", "123", "0123", "3"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "C++ Bool Output", code_snippet: "bool flag = false;\ncout << !flag;", description: "What is printed?", options: ["0", "1", "false", "true"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Scope Output", code_snippet: "int x = 10;\nif(true) { int x = 5; }\ncout << x;", description: "What is the output?", options: ["10", "5", "15", "Error"], correct_answer: 0, time_limit: 15 }
     ],
-    python: [
-        { type: "mcq", title: "Python List Slicing", code_snippet: "nums = [10, 20, 30, 40, 50]\nprint(nums[1:4])", description: "What will be printed?", options: ["[20, 30, 40]", "[10, 20, 30]", "[20, 30]", "[30, 40, 50]"], correct_answer: 0, time_limit: 15 },
-        { type: "mcq", title: "Python Dict Get", code_snippet: "d = {'a': 1, 'b': 2}\nprint(d.get('c', 3))", description: "What is the output?", options: ["None", "KeyError", "3", "c"], correct_answer: 2, time_limit: 15 },
+    cpp_intermediate: [
+        { type: "mcq", title: "C++ Pointer Modification", code_snippet: "int a = 10;\nint *p = &a;\n*p = 20;\ncout << a;", description: "What is the output?", options: ["10", "20", "Garbage value", "Compilation Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Vector Operation", code_snippet: "vector<int> v = {1, 2, 3};\nv.pop_back();\ncout << v.size();", description: "What is the size of vector v?", options: ["3", "2", "1", "0"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Reference Parameter", code_snippet: "void update(int &r) { r *= 2; }\nint main() { int x = 5; update(x); cout << x; }", description: "What is the output?", options: ["5", "10", "20", "Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "C++ Dynamic Memory", code_snippet: "int *p = new int(50);\ncout << *p;\ndelete p;", description: "What will be printed?", options: ["50", "Address of p", "Garbage value", "Error"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "C++ Inheritance", code_snippet: "class A { public: int x = 1; };\nclass B : public A {};\nB b;\ncout << b.x;", description: "What is the output?", options: ["1", "0", "Private Error", "Compilation Error"], correct_answer: 0, time_limit: 15 }
+    ],
+    java_basic: [
+        { type: "mcq", title: "Java Int Operations", code_snippet: "int x = 10;\nSystem.out.println(x / 4);", description: "What will be printed?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java String Concat", code_snippet: "System.out.println(\"A\" + 1 + 2);", description: "What is the output?", options: ["A3", "A12", "Error", "A 1 2"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Loop Counter", code_snippet: "int c = 0;\nfor(int i=0; i<5; i+=2) c++;\nSystem.out.println(c);", description: "What will count be?", options: ["2", "3", "5", "1"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Ternary Operator", code_snippet: "int a = 5;\nint b = (a > 3) ? 10 : 20;\nSystem.out.println(b);", description: "What is the output?", options: ["5", "10", "20", "3"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Array Length", code_snippet: "int[] arr = {1, 2, 3, 4};\nSystem.out.println(arr.length);", description: "What is printed?", options: ["4", "3", "5", "Error"], correct_answer: 0, time_limit: 15 }
+    ],
+    java_intermediate: [
+        { type: "mcq", title: "Java String Equality", code_snippet: "String a = \"Java\";\nString b = new String(\"Java\");\nSystem.out.println(a == b);", description: "What is the output?", options: ["true", "false", "null", "Compilation Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Array Bound Exception", code_snippet: "int[] a = {1, 2, 3};\nSystem.out.println(a[3]);", description: "What is the result?", options: ["3", "0", "ArrayIndexOutOfBoundsException", "Compilation Error"], correct_answer: 2, time_limit: 15 },
+        { type: "mcq", title: "Java Static Block", code_snippet: "class Test { static int x = 5; }\n// Inside main: Test t = null; System.out.println(t.x);", description: "What is printed?", options: ["NullPointerException", "5", "0", "Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Polymorphism", code_snippet: "class A { void show(){ System.out.print(\"A\"); } }\nclass B extends A { void show(){ System.out.print(\"B\"); } }\nA obj = new B(); obj.show();", description: "What is printed?", options: ["A", "B", "AB", "Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Java Try Catch Finally", code_snippet: "try { return; } finally { System.out.println(\"Finally\"); }", description: "What happens?", options: ["Finally is printed", "Nothing is printed", "Exception thrown", "Compilation Error"], correct_answer: 0, time_limit: 15 }
+    ],
+    python_basic: [
+        { type: "mcq", title: "Python Division", code_snippet: "print(5 // 2)", description: "What is the output?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 15 },
         { type: "mcq", title: "Python String Multiply", code_snippet: "print('2' * 3)", description: "What is the output?", options: ["6", "222", "Error", "23"], correct_answer: 1, time_limit: 15 },
-        { type: "mcq", title: "Python Boolean Evaluation", code_snippet: "print(bool([]) or bool('False'))", description: "What will be printed?", options: ["True", "False", "None", "Error"], correct_answer: 0, time_limit: 15 },
-        { type: "mcq", title: "Python Lambda", code_snippet: "f = lambda x, y: x if x > y else y\nprint(f(7, 4))", description: "What is the output?", options: ["7", "4", "True", "SyntaxError"], correct_answer: 0, time_limit: 15 }
+        { type: "mcq", title: "Python List Append", code_snippet: "a = [1, 2]\na.append([3, 4])\nprint(len(a))", description: "What is len(a)?", options: ["4", "3", "2", "Error"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Python Range", code_snippet: "print(list(range(2, 5)))", description: "What will be printed?", options: ["[2, 3, 4, 5]", "[2, 3, 4]", "[3, 4, 5]", "[2, 5]"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Python Boolean Evaluation", code_snippet: "print(bool([]) or bool('False'))", description: "What will be printed?", options: ["True", "False", "None", "Error"], correct_answer: 0, time_limit: 15 }
+    ],
+    python_intermediate: [
+        { type: "mcq", title: "Python List Slicing", code_snippet: "nums = [10, 20, 30, 40, 50]\nprint(nums[1:4])", description: "What will be printed?", options: ["[20, 30, 40]", "[10, 20, 30]", "[20, 30]", "[30, 40, 50]"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "Python Dict Get Default", code_snippet: "d = {'a': 1, 'b': 2}\nprint(d.get('c', 3))", description: "What is the output?", options: ["None", "KeyError", "3", "c"], correct_answer: 2, time_limit: 15 },
+        { type: "mcq", title: "Python Lambda Function", code_snippet: "f = lambda x, y: x if x > y else y\nprint(f(7, 4))", description: "What is the output?", options: ["7", "4", "True", "SyntaxError"], correct_answer: 0, time_limit: 15 },
+        { type: "mcq", title: "Python List Comprehension", code_snippet: "a = [x*x for x in range(3)]\nprint(a)", description: "What is printed?", options: ["[1, 2, 3]", "[0, 1, 4]", "[0, 1, 2]", "[1, 4, 9]"], correct_answer: 1, time_limit: 15 },
+        { type: "mcq", title: "Python Mutable Default Parameter", code_snippet: "def add(x, L=[]):\n L.append(x)\n return L\nadd(1)\nprint(add(2))", description: "What is printed?", options: ["[2]", "[1, 2]", "[1]", "Error"], correct_answer: 1, time_limit: 15 }
     ]
 };
 
-function getRandomFallback(language) {
-    const langKey = normalizeLanguage(language);
-    const list = FALLBACK_QUESTIONS[langKey] || FALLBACK_QUESTIONS['java'];
+function getRandomFallback(rawLanguage) {
+    const { fullKey } = parseLangAndLevel(rawLanguage);
+    const list = FALLBACK_QUESTIONS[fullKey] || FALLBACK_QUESTIONS['java_basic'];
     return JSON.stringify(list);
 }
 
 // ⭐ PythonAnywhere API မှ မေးခွန်း လှမ်းတောင်းသည့် Function
-async function fetchFromPythonAnywhere(language, difficulty = "easy") {
+async function fetchFromPythonAnywhere(rawLanguage) {
+    const { langKey, level } = parseLangAndLevel(rawLanguage);
     try {
-        const url = `${PYTHONANYWHERE_URL}/api/get-question?language=${encodeURIComponent(language)}&difficulty=${encodeURIComponent(difficulty)}`;
+        const url = `${PYTHONANYWHERE_URL}/api/get-question?language=${encodeURIComponent(langKey)}&difficulty=${encodeURIComponent(level)}`;
         const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
         if (res.ok) {
             const data = await res.text();
@@ -103,27 +139,32 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Latest Gemini Models)
-async function generateAIQuestion(language) {
-    const targetLang = normalizeLanguage(language);
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Level-Aware Prompt)
+async function generateAIQuestion(rawLanguage) {
+    const { langKey, level, fullKey } = parseLangAndLevel(rawLanguage);
     const randomSeed = Math.floor(Math.random() * 100000);
 
-    const prompt = `Generate a JSON array of exactly 5 Sololearn-style fast-paced coding challenge questions for ${targetLang}.
+    const levelDescription = level === 'intermediate'
+        ? "INTERMEDIATE level (focusing on memory management, pointers/references, classes/OOP concepts, STL/Collections, exception handling, dynamic allocation, and intermediate code output prediction)."
+        : "BASIC / BEGINNER level (focusing on fundamental syntax, loops, conditional logic, basic variable scopes, arrays, and simple code output prediction).";
+
+    const prompt = `Generate a JSON array of exactly 5 Sololearn-style fast-paced coding challenge questions for '${langKey}' programming language at ${levelDescription}
 Seed: ${randomSeed}.
 
-Goal: Test quick code output prediction, syntax awareness, logic, and debugging in a 1v1 challenge.
+Goal: Test quick code output prediction, syntax awareness, logic, and debugging in a 1v1 challenge matching difficulty level '${level.toUpperCase()}'.
 
 Rules:
 - Generate 5 Multiple Choice Questions (type: "mcq").
 - Focus heavily on "What is the output of this code snippet?" or "Fill in the blank/syntax logic".
 - Provide a short, realistic code snippet for each question in "code_snippet".
+- Questions MUST STRICTLY match the ${level.toUpperCase()} difficulty level.
 
 Exact JSON Format required:
 [
   {
     "type": "mcq",
     "title": "Short Question Title (e.g., Output Prediction)",
-    "code_snippet": "short code snippet in ${targetLang}",
+    "code_snippet": "short code snippet in ${langKey}",
     "description": "Clear question (e.g. What will be printed?)",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 0,
@@ -132,7 +173,7 @@ Exact JSON Format required:
   {
     "type": "mcq",
     "title": "Short Question Title",
-    "code_snippet": "short code snippet in ${targetLang}",
+    "code_snippet": "short code snippet in ${langKey}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 1,
@@ -141,7 +182,7 @@ Exact JSON Format required:
   {
     "type": "mcq",
     "title": "Short Question Title",
-    "code_snippet": "short code snippet in ${targetLang}",
+    "code_snippet": "short code snippet in ${langKey}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 2,
@@ -150,7 +191,7 @@ Exact JSON Format required:
   {
     "type": "mcq",
     "title": "Short Question Title",
-    "code_snippet": "short code snippet in ${targetLang}",
+    "code_snippet": "short code snippet in ${langKey}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 3,
@@ -159,7 +200,7 @@ Exact JSON Format required:
   {
     "type": "mcq",
     "title": "Short Question Title",
-    "code_snippet": "short code snippet in ${targetLang}",
+    "code_snippet": "short code snippet in ${langKey}",
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 0,
@@ -173,12 +214,11 @@ IMPORTANT:
 
     if (GEMINI_API_KEY) {
         const cleanKey = GEMINI_API_KEY.trim();
-        // ⭐ Google API မှ အကြံပြုထားသော မော်ဒယ်အသစ်များ
-        const models = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
+        const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 
         for (const modelName of models) {
             try {
-                console.log(`[Gemini] Requesting via ${modelName} for ${targetLang}...`);
+                console.log(`[Gemini] Requesting via ${modelName} for [${fullKey}]...`);
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
                 const response = await fetch(apiUrl, {
@@ -191,7 +231,7 @@ IMPORTANT:
                             temperature: 0.7
                         }
                     }),
-                    signal: AbortSignal.timeout(8000)
+                    signal: AbortSignal.timeout(5000)
                 });
 
                 const data = await response.json();
@@ -201,7 +241,7 @@ IMPORTANT:
 
                     const parsed = JSON.parse(jsonText);
                     if (Array.isArray(parsed) && parsed.length === 5) {
-                        console.log(`[Gemini AI Success via ${modelName}] Generated 5 Sololearn-style questions for ${targetLang}`);
+                        console.log(`[Gemini AI Success via ${modelName}] Generated 5 Sololearn-style questions for [${fullKey}]`);
                         return jsonText;
                     }
                 } else if (data.error) {
@@ -217,14 +257,14 @@ IMPORTANT:
 
     // Backup & Fallback
     console.log("Trying PythonAnywhere Backup...");
-    const pyData = await fetchFromPythonAnywhere(targetLang, "easy");
+    const pyData = await fetchFromPythonAnywhere(rawLanguage);
     if (pyData) {
-        console.log(`[PythonAnywhere Success] Generated questions for ${targetLang}`);
+        console.log(`[PythonAnywhere Success] Generated questions for [${fullKey}]`);
         return pyData;
     }
 
-    console.log(`[Fallback Used] Selected 5 Sololearn-style static questions for ${targetLang}`);
-    return getRandomFallback(targetLang);
+    console.log(`[Fallback Used] Selected static questions for [${fullKey}]`);
+    return getRandomFallback(rawLanguage);
 }
 
 // Render Server မပိတ်စေရန် Ping/Pong Interval
@@ -303,16 +343,16 @@ wss.on('connection', (ws) => {
                 if (message.action === 'ACCEPT') {
                     if (senderWs) {
                         const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                        const language = message.language || 'java';
+                        const rawLang = message.language || 'Java (Basic)';
 
                         rooms.set(roomId, { players: [hostUserId, guestUserId] });
 
-                        const questionsPayload = await generateAIQuestion(language);
+                        const questionsPayload = await generateAIQuestion(rawLang);
 
                         sendJson(senderWs, {
                             type: 'START_GAME',
                             roomId: roomId,
-                            language: language,
+                            language: rawLang,
                             opponentId: guestUserId,
                             questions: questionsPayload
                         });
@@ -320,7 +360,7 @@ wss.on('connection', (ws) => {
                         sendJson(ws, {
                             type: 'START_GAME',
                             roomId: roomId,
-                            language: language,
+                            language: rawLang,
                             opponentId: hostUserId,
                             questions: questionsPayload
                         });
@@ -335,18 +375,20 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 4. Quick Match Join
+            // 4. Quick Match Join (Match users with EXACT same Language & Level)
             else if (message.type === 'QUICK_MATCH_JOIN') {
                 const userId = String(message.userId);
-                const language = String(message.language || 'java').trim().toLowerCase();
+                const rawLanguage = String(message.language || 'Java (Basic)').trim();
+                const { fullKey } = parseLangAndLevel(rawLanguage);
 
                 registeredUserId = userId;
                 clients.set(userId, ws);
 
                 removeFromQueue(userId);
 
+                // ⭐ Exact match for both Language and Level
                 const opponentIndex = quickMatchQueue.findIndex(p =>
-                    p.language === language &&
+                    p.languageKey === fullKey &&
                     p.userId !== userId &&
                     p.ws.readyState === WebSocket.OPEN
                 );
@@ -360,12 +402,12 @@ wss.on('connection', (ws) => {
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                     rooms.set(roomId, { players: [userId, opponent.userId] });
 
-                    const questionsPayload = await generateAIQuestion(language);
+                    const questionsPayload = await generateAIQuestion(rawLanguage);
 
                     sendJson(ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
-                        language: language,
+                        language: rawLanguage,
                         opponentId: opponent.userId,
                         questions: questionsPayload
                     });
@@ -373,32 +415,33 @@ wss.on('connection', (ws) => {
                     sendJson(opponent.ws, {
                         type: "QUICK_MATCH_START",
                         roomId: roomId,
-                        language: language,
+                        language: rawLanguage,
                         opponentId: userId,
                         questions: questionsPayload
                     });
 
-                    console.log(`Quick Match Started: User ${userId} vs User ${opponent.userId} in ${roomId}`);
+                    console.log(`Quick Match Started: User ${userId} vs User ${opponent.userId} in ${roomId} [Mode: ${fullKey}]`);
                 } else {
                     const timeoutTimer = setTimeout(() => {
-                        console.log(`User ${userId} Quick Match timed out.`);
+                        console.log(`User ${userId} Quick Match timed out for [${fullKey}].`);
                         removeFromQueue(userId, ws);
 
                         sendJson(ws, {
                             type: "QUICK_MATCH_TIMEOUT",
-                            message: "No active opponent found within time limit."
+                            message: "No active opponent found matching your level within time limit."
                         });
                     }, MATCH_TIMEOUT_MS);
 
                     quickMatchQueue.push({
                         userId,
-                        language,
+                        languageKey: fullKey,
+                        rawLanguage,
                         ws,
                         joinedAt: Date.now(),
                         timeoutTimer
                     });
 
-                    console.log(`User ${userId} joined Quick Match queue for [${language}]. Queue size: ${quickMatchQueue.length}`);
+                    console.log(`User ${userId} joined Quick Match queue for [${fullKey}]. Queue size: ${quickMatchQueue.length}`);
                 }
             }
 
