@@ -103,7 +103,7 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Optimized Fast Switch)
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Gemini 2.0 Engine)
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -118,7 +118,7 @@ Rules:
 - Focus heavily on "What is the output of this code snippet?" or "Fill in the blank/syntax logic".
 - Provide a short, realistic code snippet for each question in "code_snippet".
 
-Exact JSON Format required (no markdown code blocks, pure JSON array):
+Exact JSON Format required:
 [
   {
     "type": "mcq",
@@ -169,34 +169,39 @@ Exact JSON Format required (no markdown code blocks, pure JSON array):
 
 IMPORTANT:
 1. "correct_answer" must be 0, 1, 2, or 3.
-2. Escape all newlines in "code_snippet" as \\n.
-3. Do not wrap in \`\`\`json markdown. Return pure JSON string only.`;
+2. Escape all newlines in "code_snippet" as \\n.`;
 
     if (GEMINI_API_KEY) {
         const cleanKey = GEMINI_API_KEY.trim();
-        const models = ["gemini-3.8-flash", "gemini-2.5-flash"];
+        // ⭐ တရားဝင် အမှန်တကယ် အလုပ်လုပ်သော Gemini 2.0 Flash မော်ဒယ်များ
+        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
         for (const modelName of models) {
             try {
                 console.log(`[Gemini] Requesting via ${modelName} for ${targetLang}...`);
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
-                // Fast Timeout: ၆ စက္ကန့်အတွင်း AI Response မလာပါက ခဏစောင့်မနေဘဲ နောက်တစ်ဆင့်သို့ ချက်ချင်းသွားမည်
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                    signal: AbortSignal.timeout(6000)
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.7
+                        }
+                    }),
+                    signal: AbortSignal.timeout(10000)
                 });
 
                 const data = await response.json();
                 if (response.ok && !data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                     let jsonText = data.candidates[0].content.parts[0].text.trim();
                     jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '');
-                    
+
                     const parsed = JSON.parse(jsonText);
                     if (Array.isArray(parsed) && parsed.length === 5) {
-                        console.log(`[Gemini Success via ${modelName}] Generated 5 Sololearn-style questions for ${targetLang}`);
+                        console.log(`[Gemini AI Success via ${modelName}] Generated 5 Sololearn-style questions for ${targetLang}`);
                         return jsonText;
                     }
                 } else if (data.error) {
@@ -210,7 +215,7 @@ IMPORTANT:
         console.warn("GEMINI_API_KEY Environment Variable is missing!");
     }
 
-    // Step 2: PythonAnywhere API Backup (Gemini High Demand/Timeout ဖြစ်ပါက ချက်ချင်း ဝင်ရောက်အကူအညီပေးမည်)
+    // AI တောင်းယူမှု အဆင်မပြေပါက Backup နှင့် Fallback သို့ သွားမည်
     console.log("Trying PythonAnywhere Backup...");
     const pyData = await fetchFromPythonAnywhere(targetLang, "easy");
     if (pyData) {
@@ -218,7 +223,6 @@ IMPORTANT:
         return pyData;
     }
 
-    // Step 3: Fallback Static Questions
     console.log(`[Fallback Used] Selected 5 Sololearn-style static questions for ${targetLang}`);
     return getRandomFallback(targetLang);
 }
