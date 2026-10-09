@@ -6,7 +6,7 @@ const wss = new WebSocketServer({ port: PORT });
 
 const clients = new Map(); // userId -> ws
 let quickMatchQueue = []; // [{ userId, languageKey, rawLanguage, ws, joinedAt, timeoutTimer }]
-const rooms = new Map(); // roomId -> { players: [userId1, userId2] }
+const rooms = new Map(); // roomId -> { players: [userId1, userId2], language: rawLanguage }
 
 const MATCH_TIMEOUT_MS = 30000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -70,7 +70,27 @@ function parseLangAndLevel(input) {
     };
 }
 
-// ⭐ Sololearn Style Static Fallback Questions (Basic & Intermediate Separated)
+// ⭐ Basic & Intermediate အလိုက် XP တွက်ချက်ပေးသည့် Helper Function
+function calculateMatchXP(rawLanguage, loserScore = 0) {
+    const { level } = parseLangAndLevel(rawLanguage);
+    
+    // Loser score အလိုက် 0 မှ 5 ထိ Bonus XP ထပ်ပေါင်းပေးခြင်း
+    const scoreBonus = Math.min(5, Math.max(0, Math.floor((loserScore / 200))));
+
+    if (level === 'intermediate') {
+        return {
+            winnerXp: 80,
+            loserXp: 15 + scoreBonus // 15 မှ 20 XP ကြား
+        };
+    } else {
+        return {
+            winnerXp: 50,
+            loserXp: 5 + scoreBonus  // 5 မှ 10 XP ကြား
+        };
+    }
+}
+
+// ⭐ Sololearn Style Static Fallback Questions
 const FALLBACK_QUESTIONS = {
     cpp_basic: [
         { type: "mcq", title: "C++ Variable Division", code_snippet: "int a = 5;\nint b = 2;\ncout << a / b;", description: "What is the output?", options: ["2.5", "2", "3", "Error"], correct_answer: 1, time_limit: 15 },
@@ -139,7 +159,7 @@ async function fetchFromPythonAnywhere(rawLanguage) {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Multi-Model Resilient)
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator
 async function generateAIQuestion(rawLanguage) {
     const { langKey, level, fullKey } = parseLangAndLevel(rawLanguage);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -214,8 +234,8 @@ IMPORTANT:
 
     if (GEMINI_API_KEY) {
         const cleanKey = GEMINI_API_KEY.trim();
-        // ⭐ Multi-model fallback sequence
-        const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
+        // ⭐ Active Gemini Models
+        const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
         for (const modelName of models) {
             try {
@@ -346,7 +366,8 @@ wss.on('connection', (ws) => {
                         const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                         const rawLang = message.language || 'Java (Basic)';
 
-                        rooms.set(roomId, { players: [hostUserId, guestUserId] });
+                        // ⭐ Dynamic XP အတွက် language ကိုပါ room ထဲထည့်ပါမည်
+                        rooms.set(roomId, { players: [hostUserId, guestUserId], language: rawLang });
 
                         const questionsPayload = await generateAIQuestion(rawLang);
 
@@ -376,7 +397,7 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 4. Quick Match Join (Match users with EXACT same Language & Level)
+            // 4. Quick Match Join
             else if (message.type === 'QUICK_MATCH_JOIN') {
                 const userId = String(message.userId);
                 const rawLanguage = String(message.language || 'Java (Basic)').trim();
@@ -387,7 +408,6 @@ wss.on('connection', (ws) => {
 
                 removeFromQueue(userId);
 
-                // ⭐ Exact match for both Language and Level
                 const opponentIndex = quickMatchQueue.findIndex(p =>
                     p.languageKey === fullKey &&
                     p.userId !== userId &&
@@ -401,7 +421,8 @@ wss.on('connection', (ws) => {
                     }
 
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                    rooms.set(roomId, { players: [userId, opponent.userId] });
+                    // ⭐ Dynamic XP အတွက် language ကိုပါ room ထဲထည့်ပါမည်
+                    rooms.set(roomId, { players: [userId, opponent.userId], language: rawLanguage });
 
                     const questionsPayload = await generateAIQuestion(rawLanguage);
 
@@ -472,13 +493,17 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 7. Game Over
+            // 7. ⭐ Dynamic XP Calculation ပါဝင်သော Game Over Handler
             else if (message.type === 'GAME_OVER') {
-                const { roomId, winnerId, player1Score, player2Score } = message;
+                const { roomId, winnerId, loserScore } = message;
                 const room = rooms.get(roomId);
 
                 if (room) {
                     const loserId = room.players.find(id => String(id) !== String(winnerId)) || null;
+                    const rawLang = room.language || 'Java (Basic)';
+
+                    // Level & Score ပေါ်မူတည်ပြီး XP တွက်ချက်ခြင်း
+                    const { winnerXp, loserXp } = calculateMatchXP(rawLang, loserScore || 0);
 
                     try {
                         fetch(`${PYTHONANYWHERE_URL}/api/match/finish`, {
@@ -488,33 +513,34 @@ wss.on('connection', (ws) => {
                                 winner_id: winnerId,
                                 loser_id: loserId,
                                 room_id: roomId,
-                                player1_score: player1Score || 100,
-                                player2_score: player2Score || 50,
-                                xp: 50,
-                                loser_xp: 10
+                                xp: winnerXp,
+                                loser_xp: loserXp
                             })
                         })
                         .then(res => res.json())
                         .then(data => {
-                            console.log(`[PythonAnywhere Match Finish Success] Room: ${roomId}`, data);
+                            console.log(`[Match Finish Success] Room: ${roomId} | Winner XP: ${winnerXp}, Loser XP: ${loserXp}`, data);
                         })
                         .catch(err => {
-                            console.error("[PythonAnywhere Match Finish Error]:", err.message);
+                            console.error("[Match Finish Error]:", err.message);
                         });
                     } catch (err) {
                         console.error("Match Finish Request Exception:", err.message);
                     }
 
+                    // Client များဆီ မက်ဆေ့ချ် ပို့ခြင်း
                     room.players.forEach(pId => {
                         const targetWs = clients.get(pId);
                         sendJson(targetWs, {
                             type: 'GAME_OVER',
-                            winnerId: winnerId
+                            winnerId: winnerId,
+                            winnerXp: winnerXp,
+                            loserXp: loserXp
                         });
                     });
 
                     rooms.delete(roomId);
-                    console.log(`Game Over in Room ${roomId}. Winner: ${winnerId}, Loser: ${loserId}`);
+                    console.log(`Game Over in Room ${roomId}. Winner: ${winnerId} (+${winnerXp} XP), Loser: ${loserId} (+${loserXp} XP)`);
                 }
             }
 
