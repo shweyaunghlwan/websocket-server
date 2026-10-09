@@ -139,7 +139,7 @@ async function fetchFromPythonAnywhere(rawLanguage) {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Level-Aware Prompt & Optimized Speed)
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Multi-Model Resilient)
 async function generateAIQuestion(rawLanguage) {
     const { langKey, level, fullKey } = parseLangAndLevel(rawLanguage);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -214,7 +214,8 @@ IMPORTANT:
 
     if (GEMINI_API_KEY) {
         const cleanKey = GEMINI_API_KEY.trim();
-        const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
+        // ⭐ Multi-model fallback sequence
+        const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash"];
 
         for (const modelName of models) {
             try {
@@ -228,10 +229,10 @@ IMPORTANT:
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             responseMimeType: "application/json",
-                            temperature: 0.3 // ပိုမိုမြန်ဆန်စွာ အဖြေထုတ်ရန် သတ်မှတ်ထားသည်
+                            temperature: 0.3
                         }
                     }),
-                    signal: AbortSignal.timeout(8000) // Timeout ကို ၈ စက္ကန့်ထိ တိုးမြှင့်လိုက်သည်
+                    signal: AbortSignal.timeout(8000)
                 });
 
                 const data = await response.json();
