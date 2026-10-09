@@ -103,7 +103,7 @@ async function fetchFromPythonAnywhere(language, difficulty = "easy") {
     return null;
 }
 
-// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Gemini 2.0 Engine)
+// ⭐ Sololearn-style Fast 5 MCQ/Code Output Questions AI Generator (Latest Gemini Models)
 async function generateAIQuestion(language) {
     const targetLang = normalizeLanguage(language);
     const randomSeed = Math.floor(Math.random() * 100000);
@@ -173,8 +173,8 @@ IMPORTANT:
 
     if (GEMINI_API_KEY) {
         const cleanKey = GEMINI_API_KEY.trim();
-        // ⭐ တရားဝင် အမှန်တကယ် အလုပ်လုပ်သော Gemini 2.0 Flash မော်ဒယ်များ
-        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
+        // ⭐ Google API မှ အကြံပြုထားသော မော်ဒယ်အသစ်များ
+        const models = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
 
         for (const modelName of models) {
             try {
@@ -191,7 +191,7 @@ IMPORTANT:
                             temperature: 0.7
                         }
                     }),
-                    signal: AbortSignal.timeout(10000)
+                    signal: AbortSignal.timeout(8000)
                 });
 
                 const data = await response.json();
@@ -215,7 +215,7 @@ IMPORTANT:
         console.warn("GEMINI_API_KEY Environment Variable is missing!");
     }
 
-    // AI တောင်းယူမှု အဆင်မပြေပါက Backup နှင့် Fallback သို့ သွားမည်
+    // Backup & Fallback
     console.log("Trying PythonAnywhere Backup...");
     const pyData = await fetchFromPythonAnywhere(targetLang, "easy");
     if (pyData) {
