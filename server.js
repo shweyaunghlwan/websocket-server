@@ -350,7 +350,9 @@ wss.on('connection', (ws) => {
                 if (message.action === 'ACCEPT') {
                     if (senderWs) {
                         const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                        const rawLang = message.language || 'Java (Basic)';
+                        
+                        // ⭐ Host (သို့မဟုတ် Guest) ပို့လိုက်သော Language ကို ဦးစားပေးရယူပါ (မပါလျှင် Java (Basic) သုံးမည်)
+                        const rawLang = message.language || room.language || 'Java (Basic)';
 
                         // Room တွင် scores နှင့် finishTimes Map များ ထည့်သွင်းခြင်း
                         rooms.set(roomId, { 
@@ -360,6 +362,7 @@ wss.on('connection', (ws) => {
                             finishTimes: new Map()
                         });
 
+                        // ⭐ ရွေးချယ်ထားသော language ဖြင့် မေးခွန်းအသစ် ထုတ်ယူခြင်း
                         const questionsPayload = await generateAIQuestion(rawLang);
 
                         sendJson(senderWs, {
@@ -378,11 +381,10 @@ wss.on('connection', (ws) => {
                             questions: questionsPayload
                         });
 
-                        console.log(`Friend Match Started: User ${hostUserId} vs User ${guestUserId} in ${roomId}`);
+                        console.log(`Friend Match Started: User ${hostUserId} vs User ${guestUserId} in ${roomId} [Language: ${rawLang}]`);
                     }
                 }
             }
-
             // 4. Quick Match Join
             else if (message.type === 'QUICK_MATCH_JOIN') {
                 const userId = String(message.userId);
