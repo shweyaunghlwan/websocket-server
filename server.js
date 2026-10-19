@@ -180,7 +180,7 @@ Exact JSON Format required:
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 0,
-    "time_limit": 15
+    "time_limit": 30
   },
   {
     "type": "mcq",
@@ -189,7 +189,7 @@ Exact JSON Format required:
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 1,
-    "time_limit": 15
+    "time_limit": 30
   },
   {
     "type": "mcq",
@@ -198,7 +198,7 @@ Exact JSON Format required:
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 2,
-    "time_limit": 15
+    "time_limit": 30
   },
   {
     "type": "mcq",
@@ -207,7 +207,7 @@ Exact JSON Format required:
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 3,
-    "time_limit": 15
+    "time_limit": 30
   },
   {
     "type": "mcq",
@@ -216,7 +216,7 @@ Exact JSON Format required:
     "description": "Clear question text?",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct_answer": 0,
-    "time_limit": 15
+    "time_limit": 30
   }
 ]
 
