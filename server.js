@@ -93,36 +93,36 @@ function calculateMatchXP(rawLanguage, loserScore = 0) {
 const FALLBACK_QUESTIONS = {
     cpp_basic: [
         [
-            { type: "mcq", title: "C++ Variable Division", code_snippet: "int a = 5;\nint b = 2;\ncout << a / b;", description: "What is the output?", options: ["2.5", "2", "3", "Error"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "C++ Increment", code_snippet: "int x = 3;\ncout << x++ * 2;", description: "What will be printed?", options: ["6", "8", "7", "4"], correct_answer: 0, time_limit: 15 },
-            { type: "mcq", title: "C++ Loop Output", code_snippet: "for(int i=0; i<3; i++) cout << i;", description: "What is printed?", options: ["012", "123", "0123", "3"], correct_answer: 0, time_limit: 15 },
-            { type: "mcq", title: "C++ Bool Output", code_snippet: "bool flag = false;\ncout << !flag;", description: "What is printed?", options: ["0", "1", "false", "true"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "C++ Scope Output", code_snippet: "int x = 10;\nif(true) { int x = 5; }\ncout << x;", description: "What is the output?", options: ["10", "5", "15", "Error"], correct_answer: 0, time_limit: 15 }
+            { type: "mcq", title: "C++ Variable Division", code_snippet: "int a = 5;\nint b = 2;\ncout << a / b;", description: "What is the output?", options: ["2.5", "2", "3", "Error"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "C++ Increment", code_snippet: "int x = 3;\ncout << x++ * 2;", description: "What will be printed?", options: ["6", "8", "7", "4"], correct_answer: 0, time_limit: 30 },
+            { type: "mcq", title: "C++ Loop Output", code_snippet: "for(int i=0; i<3; i++) cout << i;", description: "What is printed?", options: ["012", "123", "0123", "3"], correct_answer: 0, time_limit: 30 },
+            { type: "mcq", title: "C++ Bool Output", code_snippet: "bool flag = false;\ncout << !flag;", description: "What is printed?", options: ["0", "1", "false", "true"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "C++ Scope Output", code_snippet: "int x = 10;\nif(true) { int x = 5; }\ncout << x;", description: "What is the output?", options: ["10", "5", "15", "Error"], correct_answer: 0, time_limit: 30 }
         ],
         [
-            { type: "mcq", title: "C++ Modulus", code_snippet: "int r = 10 % 3;\ncout << r;", description: "What is the output?", options: ["1", "3", "0", "10"], correct_answer: 0, time_limit: 15 },
-            { type: "mcq", title: "C++ If-Else", code_snippet: "int score = 75;\nif(score > 80) cout << \"A\"; else cout << \"B\";", description: "What is printed?", options: ["A", "B", "75", "Error"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "C++ Array Access", code_snippet: "int arr[] = {10, 20, 30};\ncout << arr[1];", description: "What is printed?", options: ["10", "20", "30", "Error"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "C++ While Loop", code_snippet: "int x = 0;\nwhile(x < 2) { cout << x; x++; }", description: "What is printed?", options: ["01", "12", "012", "00"], correct_answer: 0, time_limit: 15 },
-            { type: "mcq", title: "C++ Char Output", code_snippet: "char c = 'A';\ncout << (int)c;", description: "What is printed?", options: ["A", "65", "66", "Error"], correct_answer: 1, time_limit: 15 }
+            { type: "mcq", title: "C++ Modulus", code_snippet: "int r = 10 % 3;\ncout << r;", description: "What is the output?", options: ["1", "3", "0", "10"], correct_answer: 0, time_limit: 30 },
+            { type: "mcq", title: "C++ If-Else", code_snippet: "int score = 75;\nif(score > 80) cout << \"A\"; else cout << \"B\";", description: "What is printed?", options: ["A", "B", "75", "Error"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "C++ Array Access", code_snippet: "int arr[] = {10, 20, 30};\ncout << arr[1];", description: "What is printed?", options: ["10", "20", "30", "Error"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "C++ While Loop", code_snippet: "int x = 0;\nwhile(x < 2) { cout << x; x++; }", description: "What is printed?", options: ["01", "12", "012", "00"], correct_answer: 0, time_limit: 30 },
+            { type: "mcq", title: "C++ Char Output", code_snippet: "char c = 'A';\ncout << (int)c;", description: "What is printed?", options: ["A", "65", "66", "Error"], correct_answer: 1, time_limit: 30 }
         ]
     ],
     java_basic: [
         [
-            { type: "mcq", title: "Java Int Operations", code_snippet: "int x = 10;\nSystem.out.println(x / 4);", description: "What will be printed?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Java String Concat", code_snippet: "System.out.println(\"A\" + 1 + 2);", description: "What is the output?", options: ["A3", "A12", "Error", "A 1 2"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Java Loop Counter", code_snippet: "int c = 0;\nfor(int i=0; i<5; i+=2) c++;\nSystem.out.println(c);", description: "What will count be?", options: ["2", "3", "5", "1"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Java Ternary Operator", code_snippet: "int a = 5;\nint b = (a > 3) ? 10 : 20;\nSystem.out.println(b);", description: "What is the output?", options: ["5", "10", "20", "3"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Java Array Length", code_snippet: "int[] arr = {1, 2, 3, 4};\nSystem.out.println(arr.length);", description: "What is printed?", options: ["4", "3", "5", "Error"], correct_answer: 0, time_limit: 15 }
+            { type: "mcq", title: "Java Int Operations", code_snippet: "int x = 10;\nSystem.out.println(x / 4);", description: "What will be printed?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Java String Concat", code_snippet: "System.out.println(\"A\" + 1 + 2);", description: "What is the output?", options: ["A3", "A12", "Error", "A 1 2"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Java Loop Counter", code_snippet: "int c = 0;\nfor(int i=0; i<5; i+=2) c++;\nSystem.out.println(c);", description: "What will count be?", options: ["2", "3", "5", "1"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Java Ternary Operator", code_snippet: "int a = 5;\nint b = (a > 3) ? 10 : 20;\nSystem.out.println(b);", description: "What is the output?", options: ["5", "10", "20", "3"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Java Array Length", code_snippet: "int[] arr = {1, 2, 3, 4};\nSystem.out.println(arr.length);", description: "What is printed?", options: ["4", "3", "5", "Error"], correct_answer: 0, time_limit: 30 }
         ]
     ],
     python_basic: [
         [
-            { type: "mcq", title: "Python Division", code_snippet: "print(5 // 2)", description: "What is the output?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Python String Multiply", code_snippet: "print('2' * 3)", description: "What is the output?", options: ["6", "222", "Error", "23"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Python List Append", code_snippet: "a = [1, 2]\na.append([3, 4])\nprint(len(a))", description: "What is len(a)?", options: ["4", "3", "2", "Error"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Python Range", code_snippet: "print(list(range(2, 5)))", description: "What will be printed?", options: ["[2, 3, 4, 5]", "[2, 3, 4]", "[3, 4, 5]", "[2, 5]"], correct_answer: 1, time_limit: 15 },
-            { type: "mcq", title: "Python Boolean Evaluation", code_snippet: "print(bool([]) or bool('False'))", description: "What will be printed?", options: ["True", "False", "None", "Error"], correct_answer: 0, time_limit: 15 }
+            { type: "mcq", title: "Python Division", code_snippet: "print(5 // 2)", description: "What is the output?", options: ["2.5", "2", "2.0", "3"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Python String Multiply", code_snippet: "print('2' * 3)", description: "What is the output?", options: ["6", "222", "Error", "23"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Python List Append", code_snippet: "a = [1, 2]\na.append([3, 4])\nprint(len(a))", description: "What is len(a)?", options: ["4", "3", "2", "Error"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Python Range", code_snippet: "print(list(range(2, 5)))", description: "What will be printed?", options: ["[2, 3, 4, 5]", "[2, 3, 4]", "[3, 4, 5]", "[2, 5]"], correct_answer: 1, time_limit: 30 },
+            { type: "mcq", title: "Python Boolean Evaluation", code_snippet: "print(bool([]) or bool('False'))", description: "What will be printed?", options: ["True", "False", "None", "Error"], correct_answer: 0, time_limit: 30 }
         ]
     ]
 };
@@ -240,7 +240,7 @@ IMPORTANT:
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
                             responseMimeType: "application/json",
-                            temperature: 0.9 // ⭐ မေးခွန်းများ မထပ်စေရန် Temperature ကို မြှင့်ထားသည်
+                            temperature: 0.9
                         }
                     }),
                     signal: AbortSignal.timeout(8000)
@@ -351,10 +351,8 @@ wss.on('connection', (ws) => {
                     if (senderWs) {
                         const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                         
-                        // ⭐ Host (သို့မဟုတ် Guest) ပို့လိုက်သော Language ကို ဦးစားပေးရယူပါ (မပါလျှင် Java (Basic) သုံးမည်)
-                        const rawLang = message.language || room.language || 'Java (Basic)';
+                        const rawLang = message.language || 'Java (Basic)';
 
-                        // Room တွင် scores နှင့် finishTimes Map များ ထည့်သွင်းခြင်း
                         rooms.set(roomId, { 
                             players: [hostUserId, guestUserId], 
                             language: rawLang,
@@ -362,7 +360,6 @@ wss.on('connection', (ws) => {
                             finishTimes: new Map()
                         });
 
-                        // ⭐ ရွေးချယ်ထားသော language ဖြင့် မေးခွန်းအသစ် ထုတ်ယူခြင်း
                         const questionsPayload = await generateAIQuestion(rawLang);
 
                         sendJson(senderWs, {
@@ -410,7 +407,6 @@ wss.on('connection', (ws) => {
 
                     const roomId = "QUICK_ROOM_" + Math.floor(1000 + Math.random() * 9000);
                     
-                    // Room တွင် scores နှင့် finishTimes Map များ ထည့်သွင်းခြင်း
                     rooms.set(roomId, { 
                         players: [userId, opponent.userId], 
                         language: rawLanguage,
@@ -484,7 +480,36 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 7. ⭐ အမှတ်နှင့် အချိန်ကို အခြေခံ၍ အနိုင်အရှုံး ဆုံးဖြတ်သော Game Over Handler
+            // 7. ⭐ ထွက်သွားသူရှိပါက ကျန်ခဲ့သူ တန်းအနိုင်ရစေရန် (Surrender Handler)
+            else if (message.type === 'SURRENDER') {
+                const { roomId, userId } = message;
+                const room = rooms.get(roomId);
+
+                if (room) {
+                    const exitingUserId = String(userId);
+                    const opponentId = room.players.find(pId => pId !== exitingUserId);
+
+                    if (opponentId) {
+                        const rawLang = room.language || 'Java (Basic)';
+                        const { winnerXp, loserXp } = calculateMatchXP(rawLang, 0);
+
+                        room.players.forEach(pId => {
+                            const targetWs = clients.get(pId);
+                            sendJson(targetWs, {
+                                type: 'GAME_OVER',
+                                winnerId: opponentId,
+                                winnerXp: winnerXp,
+                                loserXp: loserXp
+                            });
+                        });
+
+                        rooms.delete(roomId);
+                        console.log(`[Surrender] User ${exitingUserId} left the match. Opponent ${opponentId} wins automatically in Room ${roomId}`);
+                    }
+                }
+            }
+
+            // 8. ⭐ အမှတ်နှင့် အချိန်ကို အခြေခံ၍ အနိုင်အရှုံး ဆုံးဖြတ်သော Game Over Handler
             else if (message.type === 'GAME_OVER') {
                 const { roomId, userId, score } = message;
                 const room = rooms.get(roomId);
@@ -493,14 +518,11 @@ wss.on('connection', (ws) => {
                     const currentUserId = String(userId);
                     const currentScore = typeof score === 'number' ? score : 0;
 
-                    // ဤ player ၏ score နှင့် finish time ကို မှတ်သားခြင်း
                     room.scores.set(currentUserId, currentScore);
                     room.finishTimes.set(currentUserId, Date.now());
 
                     console.log(`[Game Over Info] Room: ${roomId} | User ${currentUserId} finished with score: ${currentScore}`);
 
-                    // Room ထဲရှိ player နှစ်ဦးစလုံး ပြီးဆုံးသွားပြီလား သို့မဟုတ် တစ်ဦးက အချိန်ကုန်သွား၍ ပို့လာခြင်းလား စစ်ဆေးခြင်း
-                    // (သို့မဟုတ် Player နှစ်ဦးလုံး၏ Data ရောက်ရှိလာခြင်းကို စောင့်မည်)
                     if (room.scores.size >= 2 || room.players.length === 1) {
                         const playerIds = room.players;
                         const p1 = String(playerIds[0]);
@@ -513,11 +535,9 @@ wss.on('connection', (ws) => {
                         let loserId = p2;
 
                         if (score1 !== score2) {
-                            // အမှတ် မတူရင် အမှတ်များတဲ့သူ နိုင်မယ်
                             winnerId = score1 > score2 ? p1 : p2;
                             loserId = score1 > score2 ? p2 : p1;
                         } else {
-                            // အမှတ် တူနေရင် အရင်ပြီးတဲ့သူ (finish time ငယ်တဲ့သူ) နိုင်မယ်
                             const time1 = room.finishTimes.get(p1) || 0;
                             const time2 = room.finishTimes.get(p2) || 0;
                             winnerId = time1 <= time2 ? p1 : p2;
@@ -528,7 +548,6 @@ wss.on('connection', (ws) => {
                         const rawLang = room.language || 'Java (Basic)';
                         const { winnerXp, loserXp } = calculateMatchXP(rawLang, loserScore);
 
-                        // PythonAnywhere သို့ match finish အချက်အလက် ပို့ခြင်း
                         try {
                             fetch(`${PYTHONANYWHERE_URL}/api/match/finish`, {
                                 method: 'POST',
@@ -552,7 +571,6 @@ wss.on('connection', (ws) => {
                             console.error("Match Finish Request Exception:", err.message);
                         }
 
-                        // Client များဆီသို့ GAME_OVER မက်ဆေ့ချ် ပို့ခြင်း
                         room.players.forEach(pId => {
                             const targetWs = clients.get(pId);
                             sendJson(targetWs, {
