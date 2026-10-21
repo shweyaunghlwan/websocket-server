@@ -335,51 +335,51 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            // 3. Invite Response (Friend Match)
+         // 3. Invite Response (Friend Match)
             else if (message.type === 'INVITE_RESPONSE') {
-                const hostUserId = String(message.toUser);
-                const guestUserId = registeredUserId || String(message.fromUser || "GUEST");
+                const otherUserId = String(message.toUser); // Guest ၏ ID
+                const hostUserId = registeredUserId || String(message.fromUser || "GUEST"); // Host ၏ ID
 
                 if (!registeredUserId && message.fromUser) {
                     registeredUserId = String(message.fromUser);
                     clients.set(registeredUserId, ws);
                 }
 
-                const senderWs = clients.get(hostUserId);
+                const guestWs = clients.get(otherUserId); // Guest ၏ WebSocket
+                const hostWs = ws; // Host ၏ WebSocket (ခလုတ်နှိပ်သူ Host ဖြစ်므로 ws သည် Host ဖြစ်သည်)
 
                 if (message.action === 'ACCEPT') {
-                    if (senderWs) {
-                        const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
-                        
-                        const rawLang = message.language || 'Java (Basic)';
+                    const roomId = "FRIEND_ROOM_" + Math.floor(1000 + Math.random() * 9000);
+                    const rawLang = message.language || 'Java (Basic)';
 
-                        rooms.set(roomId, { 
-                            players: [hostUserId, guestUserId], 
-                            language: rawLang,
-                            scores: new Map(),
-                            finishTimes: new Map()
-                        });
+                    rooms.set(roomId, { 
+                        players: [hostUserId, otherUserId], 
+                        language: rawLang,
+                        scores: new Map(),
+                        finishTimes: new Map()
+                    });
 
-                        const questionsPayload = await generateAIQuestion(rawLang);
+                    const questionsPayload = await generateAIQuestion(rawLang);
 
-                        sendJson(senderWs, {
-                            type: 'START_GAME',
-                            roomId: roomId,
-                            language: rawLang,
-                            opponentId: guestUserId,
-                            questions: questionsPayload
-                        });
+                    // Host ဆီသို့ START_GAME ပို့ရန်
+                    sendJson(hostWs, {
+                        type: 'START_GAME',
+                        roomId: roomId,
+                        language: rawLang,
+                        opponentId: otherUserId,
+                        questions: questionsPayload
+                    });
 
-                        sendJson(ws, {
-                            type: 'START_GAME',
-                            roomId: roomId,
-                            language: rawLang,
-                            opponentId: hostUserId,
-                            questions: questionsPayload
-                        });
+                    // Guest ဆီသို့ START_GAME ပို့ရန်
+                    sendJson(guestWs, {
+                        type: 'START_GAME',
+                        roomId: roomId,
+                        language: rawLang,
+                        opponentId: hostUserId,
+                        questions: questionsPayload
+                    });
 
-                        console.log(`Friend Match Started: User ${hostUserId} vs User ${guestUserId} in ${roomId} [Language: ${rawLang}]`);
-                    }
+                    console.log(`Friend Match Started: User ${hostUserId} vs User ${otherUserId} in ${roomId} [Language: ${rawLang}]`);
                 }
             }
             // 4. Quick Match Join
@@ -500,8 +500,7 @@ wss.on('connection', (ws) => {
                                 winnerId: opponentId,
                                 winnerXp: winnerXp,
                                 loserXp: loserXp
-                                score1: score1, 
-                                score2: score2 
+                                 
                             });
                         });
 
@@ -580,6 +579,8 @@ wss.on('connection', (ws) => {
                                 winnerId: winnerId,
                                 winnerXp: winnerXp,
                                 loserXp: loserXp
+                                score1: score1, // ⭐ ဤနေရာတွင် ထည့်ပါ
+                                score2: score2
                             });
                         });
 
