@@ -310,17 +310,22 @@ wss.on('connection', (ws) => {
                 console.log(`User ${registeredUserId} registered. Total online: ${clients.size}`);
             }
 
-            // 2. Invite Send
+           // 2. Invite Send
             else if (message.type === 'INVITE_SEND') {
                 const fromUser = String(message.fromUser);
-                const toUser = String(message.toUser);
+                const toUser = String(message.toUser); // ဤနေရာတွင် Room Code ဖြစ်နေနိုင်သည်
 
                 if (!registeredUserId) {
                     registeredUserId = fromUser;
                     clients.set(registeredUserId, ws);
                 }
 
-                const targetWs = clients.get(toUser);
+                // ⭐ toUser သည် Room Code ဖြစ်နေပါက Room ထဲရှိ Host ကို ရှာရန် (သို့မဟုတ် တိုက်ရိုက် User ID ဖြင့် ပို့ရန်)
+                let targetWs = clients.get(toUser);
+
+                // အကယ်၍ toUser မှာ Room Code ဖြစ်နေပါက (ဥပမာ C9BQXJ) Room Map ထဲမှ Host ကို ရှابေးရန် လိုအပ်သည်
+                // သို့မဟုတ်ပါက Friend Match တွင် Code ဖြင့် Join ရာ၌ Room Code အစား Host ၏ User ID ကို တိုက်ရိုက်သုံးပါ
+                
                 const sent = sendJson(targetWs, {
                     type: 'INVITE_RECEIVED',
                     fromUser: fromUser,
