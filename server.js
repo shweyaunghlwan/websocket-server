@@ -500,6 +500,8 @@ wss.on('connection', (ws) => {
                                 winnerId: opponentId,
                                 winnerXp: winnerXp,
                                 loserXp: loserXp
+                                score1: score1, 
+                                score2: score2 
                             });
                         });
 
