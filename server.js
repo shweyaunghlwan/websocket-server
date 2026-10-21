@@ -310,17 +310,22 @@ wss.on('connection', (ws) => {
                 console.log(`User ${registeredUserId} registered. Total online: ${clients.size}`);
             }
 
-            // 2. Invite Send
+           // 2. Invite Send
             else if (message.type === 'INVITE_SEND') {
                 const fromUser = String(message.fromUser);
-                const toUser = String(message.toUser);
+                const toUser = String(message.toUser); // ဤနေရာတွင် Room Code ဖြစ်နေနိုင်သည်
 
                 if (!registeredUserId) {
                     registeredUserId = fromUser;
                     clients.set(registeredUserId, ws);
                 }
 
-                const targetWs = clients.get(toUser);
+                // ⭐ toUser သည် Room Code ဖြစ်နေပါက Room ထဲရှိ Host ကို ရှာရန် (သို့မဟုတ် တိုက်ရိုက် User ID ဖြင့် ပို့ရန်)
+                let targetWs = clients.get(toUser);
+
+                // အကယ်၍ toUser မှာ Room Code ဖြစ်နေပါက (ဥပမာ C9BQXJ) Room Map ထဲမှ Host ကို ရှابေးရန် လိုအပ်သည်
+                // သို့မဟုတ်ပါက Friend Match တွင် Code ဖြင့် Join ရာ၌ Room Code အစား Host ၏ User ID ကို တိုက်ရိုက်သုံးပါ
+                
                 const sent = sendJson(targetWs, {
                     type: 'INVITE_RECEIVED',
                     fromUser: fromUser,
@@ -524,12 +529,10 @@ wss.on('connection', (ws) => {
                     console.log(`[Game Over Info] Room: ${roomId} | User ${currentUserId} finished with score: ${currentScore}`);
 
                     if (room.scores.size >= 2 || room.players.length === 1) {
-                        const playerIds = room.players;
-                        const p1 = String(playerIds[0]);
-                        const p2 = String(playerIds[1] || playerIds[0]);
-
-                        const score1 = room.scores.get(p1) || 0;
-                        const score2 = room.scores.get(p2) || 0;
+                        // ⭐ room.scores ထဲမှ တကယ့် Player ID များနှင့် Scores များကို တိုက်ရိုက်ရယူ၍ နှိုင်းယှဉ်ခြင်း (ID လွဲခြင်းမှ ကာကွယ်ရန်)
+                        const scoresEntries = Array.from(room.scores.entries());
+                        const [p1, score1] = scoresEntries[0] || [room.players[0], 0];
+                        const [p2, score2] = scoresEntries[1] || [room.players[1] || p1, 0];
 
                         let winnerId = p1;
                         let loserId = p2;
@@ -543,6 +546,9 @@ wss.on('connection', (ws) => {
                             winnerId = time1 <= time2 ? p1 : p2;
                             loserId = time1 <= time2 ? p2 : p1;
                         }
+
+                        // room.players ကိုလည်း မှန်ကန်သော ID များနှင့် Update လုပ်ပေးခြင်း
+                        room.players = [p1, p2];
 
                         const loserScore = Math.min(score1, score2);
                         const rawLang = room.language || 'Java (Basic)';
